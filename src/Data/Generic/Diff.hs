@@ -323,7 +323,6 @@ matchConstructor = tryEach constructors
       (forall ts. f t ts -> IsList f ts -> ts -> r) -> r
     tryEach (Concr c  : cs)  x  k  = matchOrRetry c      cs x k
     tryEach (Abstr c  : cs)  x  k  = matchOrRetry (c x)  cs x k
-    --tryEach (Newtype (Same (to,fr)) (Concr c) : cs)  x  k  = matchOrRetry c      cs (to x) k
     tryEach [] _ _ = error "Incorrect Family or Type instance."
 
     matchOrRetry :: (List f ts, Type f t) => f t ts -> [Con f t] -> t ->
