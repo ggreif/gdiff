@@ -8,7 +8,7 @@
 {-#  LANGUAGE RankNTypes  #-}
 {-#  LANGUAGE ScopedTypeVariables  #-}
 {-#  LANGUAGE OverlappingInstances  #-} --  Only for the Show
-
+{-#  LANGUAGE ImpredicativeTypes  #-}
 {- |
 
 Use this library to get an efficient, optimal, type-safe 'diff' and
@@ -51,6 +51,8 @@ module Data.Generic.Diff (
 ) where
 
 import Data.Type.Equality ( (:~:)(..) )
+import GHC.Exts ( Coercible(..), coerce )
+import Unsafe.Coerce ( unsafeCoerce )
 
 -- | Edit script type for two single values.
 type EditScript f x y = EditScriptL f (Cons x Nil) (Cons y Nil)
@@ -216,6 +218,37 @@ class (Family f) => Type f t where
 data Con :: (* -> * -> *) -> * -> * where
     Concr   :: (List f ts)        =>        f t ts   -> Con f t
     Abstr   :: (Eq t, List f ts)  => (t ->  f t ts)  -> Con f t
+    --Newtype :: (List g us, Family f) => (forall ts . g u us -> f t ts)   ->    g u us   -> Con f t
+    Newtype :: t :=: u -> Con f (u p) -> Con f (t p)
+
+
+data (:=:) :: (* -> *) -> (* -> *) -> * where
+  Same :: (g a -> f a, f a -> g a) -> f :=: g
+
+newtype M f p = M { unM :: f p }
+
+t1 :: M f :=: f
+t1 = Same (M, unM)
+
+--upgrade :: (List g ts) => (forall us . g u us -> f t ts, u -> t)   ->    Con g u   -> Con f t
+--upgrade (conv, nt) (Concr gu) =
+
+conv :: Type f t => Con f t -> IsList g us -> IsList f us
+conv _ IsNil = IsNil
+--conv c (IsCons is) = IsCons (conv c is)
+
+--turk :: (forall ts . List f ts => f u ts -> Con f u) -> (forall ts lfts . lfts -> f u ts -> Con f u)
+turk :: (forall ts . List f ts => f u ts -> Con f u) -> (forall ts . IsList f ts -> f u ts -> Con f u)
+turk = unsafeCoerce
+
+--bar :: Coercible u t => (forall ts . f u ts -> f t ts) -> (forall ts . List f ts => f u ts -> Con f u) -> Con u t -> Con f t
+bar :: Coercible u t => (forall ts . f u ts -> f t ts) -> Con f u -> proxy t -> Con f t
+bar ut (Concr futs) _ = let l = list in turk Concr l (ut futs)
+
+
+--instance List g us => List (Iso g) us where
+--  list = IsNil
+
 
 class List f ts where
   list :: IsList f ts
@@ -310,6 +343,7 @@ matchConstructor = tryEach constructors
       (forall ts. f t ts -> IsList f ts -> ts -> r) -> r
     tryEach (Concr c  : cs)  x  k  = matchOrRetry c      cs x k
     tryEach (Abstr c  : cs)  x  k  = matchOrRetry (c x)  cs x k
+    --tryEach (Newtype (Same (to,fr)) (Concr c) : cs)  x  k  = matchOrRetry c      cs (to x) k
     tryEach [] _ _ = error "Incorrect Family or Type instance."
 
     matchOrRetry :: (List f ts, Type f t) => f t ts -> [Con f t] -> t ->
