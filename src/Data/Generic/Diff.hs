@@ -218,7 +218,6 @@ class (Family f) => Type f t where
 data Con :: (* -> * -> *) -> * -> * where
     Concr   :: (List f ts)        =>        f t ts   -> Con f t
     Abstr   :: (Eq t, List f ts)  => (t ->  f t ts)  -> Con f t
-    --Newtype :: (List g us, Family f) => (forall ts . g u us -> f t ts)   ->    g u us   -> Con f t
     Newtype :: t :=: u -> Con f (u p) -> Con f (t p)
 
 
@@ -230,25 +229,11 @@ newtype M f p = M { unM :: f p }
 t1 :: M f :=: f
 t1 = Same (M, unM)
 
---upgrade :: (List g ts) => (forall us . g u us -> f t ts, u -> t)   ->    Con g u   -> Con f t
---upgrade (conv, nt) (Concr gu) =
-
-conv :: Type f t => Con f t -> IsList g us -> IsList f us
-conv _ IsNil = IsNil
---conv c (IsCons is) = IsCons (conv c is)
-
---turk :: (forall ts . List f ts => f u ts -> Con f u) -> (forall ts lfts . lfts -> f u ts -> Con f u)
 turk :: (forall ts . List f ts => f u ts -> Con f u) -> (forall ts . IsList f ts -> f u ts -> Con f u)
 turk = unsafeCoerce
 
---bar :: Coercible u t => (forall ts . f u ts -> f t ts) -> (forall ts . List f ts => f u ts -> Con f u) -> Con u t -> Con f t
-bar :: Coercible u t => (forall ts . f u ts -> f t ts) -> Con f u -> proxy t -> Con f t
-bar ut (Concr futs) _ = let l = list in turk Concr l (ut futs)
-
-
---instance List g us => List (Iso g) us where
---  list = IsNil
-
+upgrade :: Coercible u t => (forall ts . f u ts -> f t ts) -> Con f u -> proxy t -> Con f t
+upgrade ut (Concr futs) _ = let l = list in turk Concr l (ut futs)
 
 class List f ts where
   list :: IsList f ts
