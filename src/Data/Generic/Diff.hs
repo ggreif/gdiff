@@ -8,7 +8,8 @@
 {-#  LANGUAGE RankNTypes  #-}
 {-#  LANGUAGE ScopedTypeVariables  #-}
 {-#  LANGUAGE OverlappingInstances  #-} --  Only for the Show
-{-#  LANGUAGE ImpredicativeTypes  #-}
+{-#  LANGUAGE ImpredicativeTypes  #-} --  Only for 'coerceConcr'
+
 {- |
 
 Use this library to get an efficient, optimal, type-safe 'diff' and
@@ -218,22 +219,16 @@ class (Family f) => Type f t where
 data Con :: (* -> * -> *) -> * -> * where
     Concr   :: (List f ts)        =>        f t ts   -> Con f t
     Abstr   :: (Eq t, List f ts)  => (t ->  f t ts)  -> Con f t
-    Newtype :: t :=: u -> Con f (u p) -> Con f (t p)
 
+coerceConcr :: (forall ts . List f ts => f u ts -> Con f u) -> (forall ts . IsList f ts -> f u ts -> Con f u)
+coerceConcr = unsafeCoerce
 
-data (:=:) :: (* -> *) -> (* -> *) -> * where
-  Same :: (g a -> f a, f a -> g a) -> f :=: g
-
-newtype M f p = M { unM :: f p }
-
-t1 :: M f :=: f
-t1 = Same (M, unM)
-
-turk :: (forall ts . List f ts => f u ts -> Con f u) -> (forall ts . IsList f ts -> f u ts -> Con f u)
-turk = unsafeCoerce
+coerceAbstr :: (forall ts . List f ts => (u -> f u ts) -> Con f u) -> (forall ts . IsList f ts -> (u -> f u ts) -> Con f u)
+coerceAbstr = unsafeCoerce
 
 upgrade :: Coercible u t => (forall ts . f u ts -> f t ts) -> Con f u -> proxy t -> Con f t
-upgrade ut (Concr futs) _ = let l = list in turk Concr l (ut futs)
+upgrade ut (Concr futs) _ = coerceConcr Concr list (ut futs)
+--upgrade ut (Abstr tfuts) _ = let l = list in coerceAbstr Abstr l (ut (coerce . tfuts))
 
 class List f ts where
   list :: IsList f ts
