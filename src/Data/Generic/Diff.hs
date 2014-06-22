@@ -228,7 +228,7 @@ coerceAbstr = unsafeCoerce
 
 upgrade :: Coercible u t => (forall ts . f u ts -> f t ts) -> Con f u -> proxy t -> Con f t
 upgrade ut (Concr futs) _ = coerceConcr Concr list (ut futs)
---upgrade ut (Abstr tfuts) _ = let l = list in coerceAbstr Abstr l (ut (coerce . tfuts))
+--upgrade ut (Abstr tfuts) _ = let l = list in coerceAbstr Abstr l (ut (tfuts . coerce))
 
 class List f ts where
   list :: IsList f ts
