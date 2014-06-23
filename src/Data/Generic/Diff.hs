@@ -49,6 +49,7 @@ module Data.Generic.Diff (
     Con(..),
     Nil(..),
     Cons(..),
+    upgrade
 ) where
 
 import Data.Type.Equality ( (:~:)(..) )
