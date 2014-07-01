@@ -8,7 +8,6 @@
 {-#  LANGUAGE RankNTypes  #-}
 {-#  LANGUAGE ScopedTypeVariables  #-}
 {-#  LANGUAGE OverlappingInstances  #-} --  Only for the Show
-{-#  LANGUAGE ImpredicativeTypes  #-} --  Only for 'coerceConcr'
 
 {- |
 
@@ -48,13 +47,10 @@ module Data.Generic.Diff (
     (:~:)(..),
     Con(..),
     Nil(..),
-    Cons(..),
-    upgrade
+    Cons(..)
 ) where
 
 import Data.Type.Equality ( (:~:)(..) )
-import GHC.Exts ( Coercible(..), coerce )
-import Unsafe.Coerce ( unsafeCoerce )
 
 -- | Edit script type for two single values.
 type EditScript f x y = EditScriptL f (Cons x Nil) (Cons y Nil)
@@ -220,21 +216,6 @@ class (Family f) => Type f t where
 data Con :: (* -> * -> *) -> * -> * where
     Concr   :: (List f ts)        =>        f t ts   -> Con f t
     Abstr   :: (Eq t, List f ts)  => (t ->  f t ts)  -> Con f t
-
-coerceConcr :: (forall ts . List f ts => f u ts -> Con f u) -> (forall ts . IsList f ts -> f u ts -> Con f u)
-coerceConcr = unsafeCoerce
-
-coerceAbstr :: (forall ts . List f ts => (u -> f u ts) -> Con f u) -> (forall ts . IsList f ts -> (u -> f u ts) -> Con f u)
-coerceAbstr = unsafeCoerce
-
-upgrade :: Coercible u t => (forall ts . f u ts -> f t ts) -> Con f u -> Con f t
---upgrade ut (Concr futs) = coerceConcr Concr list (ut futs)
-upgrade ut (Concr futs) = Concr (ut futs)
---upgrade ut (Abstr tfuts) = let l = list in coerceAbstr Abstr l (ut (tfuts . coerce))
-
-leftgrade :: forall (or :: (* -> *)->(* -> *)->(* -> *)) f a b p
-           . (forall ts . f (a p) ts -> f ((a `or` b) p) ts) -> Con f (a p) -> Con f ((a `or` b) p)
-leftgrade f (Concr c) = Concr $ f c
 
 
 class List f ts where
