@@ -228,7 +228,8 @@ coerceAbstr :: (forall ts . List f ts => (u -> f u ts) -> Con f u) -> (forall ts
 coerceAbstr = unsafeCoerce
 
 upgrade :: Coercible u t => (forall ts . f u ts -> f t ts) -> Con f u -> Con f t
-upgrade ut (Concr futs) = coerceConcr Concr list (ut futs)
+--upgrade ut (Concr futs) = coerceConcr Concr list (ut futs)
+upgrade ut (Concr futs) = Concr (ut futs)
 --upgrade ut (Abstr tfuts) = let l = list in coerceAbstr Abstr l (ut (tfuts . coerce))
 
 leftgrade :: forall (or :: (* -> *)->(* -> *)->(* -> *)) f a b p
