@@ -231,9 +231,6 @@ upgrade :: Coercible u t => (forall ts . f u ts -> f t ts) -> Con f u -> Con f t
 upgrade ut (Concr futs) = coerceConcr Concr list (ut futs)
 --upgrade ut (Abstr tfuts) = let l = list in coerceAbstr Abstr l (ut (tfuts . coerce))
 
---leftgrade :: (f (a p) (a p `Cons` Nil) -> f ((a `or` b) p) (a p `Cons` Nil)) -> Con f (a p) -> Con f ((a `or` b) p)
---leftgrade :: (forall ts . f (a p) ts -> f ((a `or` b) p) ts) -> Con f (a p) -> Con f ((a `or` b) p)
---leftgrade f (Concr c) = Concr $ f c
 leftgrade :: forall (or :: (* -> *)->(* -> *)->(* -> *)) f a b p
            . (forall ts . f (a p) ts -> f ((a `or` b) p) ts) -> Con f (a p) -> Con f ((a `or` b) p)
 leftgrade f (Concr c) = Concr $ f c
