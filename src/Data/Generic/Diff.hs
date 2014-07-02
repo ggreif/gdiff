@@ -225,11 +225,10 @@ coerceConcr = unsafeCoerce
 coerceAbstr :: (forall ts . List f ts => (u -> f u ts) -> Con f u) -> (forall ts . IsList f ts -> (u -> f u ts) -> Con f u)
 coerceAbstr = unsafeCoerce
 
-productCon :: (forall ts us . f t ts -> f u us -> f (t `prod` u) (ts `Append` us)) -> Con f t -> Con f u -> Con f (t `prod` u)
+productCon :: (forall ts us . f t ts -> f u us -> f (t `prod` u) (ts `Append` us))
+           -> Con f t -> Con f u -> Con f (t `prod` u)
 productCon f ct@(Concr t) cu@(Concr u) = coerceConcr Concr ltu $ f t u
-   where lt = listFrom t
-         lu = listFrom u
-         ltu = appendList lt lu
+   where ltu = listFrom t `appendList` listFrom u
          listFrom :: List f' ts => f' t' ts -> IsList f' ts
          listFrom _ = list
 
