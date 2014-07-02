@@ -48,7 +48,9 @@ module Data.Generic.Diff (
     (:~:)(..),
     Con(..),
     Nil(..),
-    Cons(..)
+    Cons(..),
+    Append,
+    productCon
 ) where
 
 import Data.Type.Equality ( (:~:)(..) )
