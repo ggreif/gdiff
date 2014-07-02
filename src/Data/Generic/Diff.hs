@@ -50,7 +50,7 @@ module Data.Generic.Diff (
     Nil(..),
     Cons(..),
     Append,
-    productCon
+    productCon, product'Con
 ) where
 
 import Data.Type.Equality ( (:~:)(..) )
@@ -230,6 +230,13 @@ coerceAbstr = unsafeCoerce
 productCon :: (forall ts us . f t ts -> f u us -> f (t `prod` u) (ts `Append` us))
            -> Con f t -> Con f u -> Con f (t `prod` u)
 productCon f ct@(Concr t) cu@(Concr u) = coerceConcr Concr ltu $ f t u
+   where ltu = listFrom t `appendList` listFrom u
+         listFrom :: List f' ts => f' t' ts -> IsList f' ts
+         listFrom _ = list
+
+product'Con :: (forall ts us . f (t p) ts -> f (u p) us -> f ((t `prod` u) p) (ts `Append` us))
+           -> Con f (t p) -> Con f (u p) -> Con f ((t `prod` u) p)
+product'Con f ct@(Concr t) cu@(Concr u) = coerceConcr Concr ltu $ f t u
    where ltu = listFrom t `appendList` listFrom u
          listFrom :: List f' ts => f' t' ts -> IsList f' ts
          listFrom _ = list
