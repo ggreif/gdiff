@@ -8,6 +8,7 @@
 {-#  LANGUAGE RankNTypes  #-}
 {-#  LANGUAGE ScopedTypeVariables  #-}
 {-#  LANGUAGE OverlappingInstances  #-} --  Only for the Show
+{-# LANGUAGE ImpredicativeTypes #-} -- Only for 'coerceConcr'
 
 {- |
 
@@ -51,6 +52,7 @@ module Data.Generic.Diff (
 ) where
 
 import Data.Type.Equality ( (:~:)(..) )
+import Unsafe.Coerce ( unsafeCoerce )
 
 -- | Edit script type for two single values.
 type EditScript f x y = EditScriptL f (Cons x Nil) (Cons y Nil)
@@ -217,6 +219,19 @@ data Con :: (* -> * -> *) -> * -> * where
     Concr   :: (List f ts)        =>        f t ts   -> Con f t
     Abstr   :: (Eq t, List f ts)  => (t ->  f t ts)  -> Con f t
 
+coerceConcr :: (forall ts . List f ts => f u ts -> Con f u) -> (forall ts . IsList f ts -> f u ts -> Con f u)
+coerceConcr = unsafeCoerce
+
+coerceAbstr :: (forall ts . List f ts => (u -> f u ts) -> Con f u) -> (forall ts . IsList f ts -> (u -> f u ts) -> Con f u)
+coerceAbstr = unsafeCoerce
+
+productCon :: (forall ts us . f t ts -> f u us -> f (t `prod` u) (ts `Append` us)) -> Con f t -> Con f u -> Con f (t `prod` u)
+productCon f ct@(Concr t) cu@(Concr u) = coerceConcr Concr ltu $ f t u
+   where lt = listFrom t
+         lu = listFrom u
+         ltu = appendList lt lu
+         listFrom :: List f' ts => f' t' ts -> IsList f' ts
+         listFrom _ = list
 
 class List f ts where
   list :: IsList f ts
