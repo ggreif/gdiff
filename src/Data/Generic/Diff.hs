@@ -50,6 +50,7 @@ module Data.Generic.Diff (
     Nil(..),
     Cons(..),
     Append,
+    appendProd,
     productCon, product'Con
 ) where
 
@@ -300,6 +301,9 @@ appendList (IsCons isxs) isys = IsCons (appendList isxs isys)
 append :: IsList f txs -> IsList f tys -> txs -> tys -> Append txs tys
 append IsNil         _    CNil         ys = ys
 append (IsCons isxs) isys (CCons x xs) ys = CCons x (append isxs isys xs ys)
+
+appendProd :: (Type f x, List f txs, Type f y, List f tys) => txs -> tys -> f x txs -> f y tys -> Append txs tys
+appendProd txs tys x y = append (isList x) (isList y) txs tys
 
 instance Show (EditScriptL f txs tys) where
   show (Ins  c   d)  = "Ins "  ++ string c  ++ " $ " ++ show d
