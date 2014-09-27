@@ -70,9 +70,9 @@ diff x y = diffL (CCons x CNil) (CCons y CNil)
 -- | Underlying implementation of 'patch', works with (heterogeneous) lists of
 -- values.
 patchL :: forall f txs tys . EditScriptL f txs tys -> txs -> tys
-patchL (Ins  c   d) = insert c .  patchL d
-patchL (Del  c   d) =             patchL d . delete c
-patchL (Cpy  c   d) = insert c .  patchL d . delete c
+patchL (Ins  c   d) = insert apply c .  patchL d
+patchL (Del  c   d) =                   patchL d . delete c
+patchL (Cpy  c   d) = insert copy  c .  patchL d . delete c
 patchL (CpyTree  d) = \(CCons x xs) -> CCons x . patchL d $ xs
 patchL End          = \CNil -> CNil
 
@@ -176,6 +176,10 @@ class Family f where
     -- constructors, the list of arguments should be 'CNil', but you project
     -- out the value saved with the family constructor.
     apply     ::                f t ts -> ts -> t
+    -- | When the node matches, but the subtrees not necessarily, permit
+    -- the user to optimize
+    copy      ::                f t ts -> ts -> t
+    copy = apply
     -- | For 'show'ing the constructors from the family.
     string    ::                f t ts -> String
 
@@ -293,8 +297,8 @@ delete c (CCons x xs) =
 isList :: (Family f, List f ts) => f t ts -> IsList f ts
 isList _ = list
 
-insert :: (Type f t, List f ts, List f txs) => f t ts -> Append ts txs -> Cons t txs
-insert c xs = CCons (apply c txs) tys
+insert :: (Type f t, List f ts, List f txs) => (f t ts -> ts -> t) -> f t ts -> Append ts txs -> Cons t txs
+insert app c xs = CCons (app c txs) tys
   where (txs, tys) = split (isList c) xs
 
 split :: IsList f txs -> Append txs tys -> (txs, tys)
