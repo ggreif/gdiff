@@ -8,6 +8,7 @@
 {-#  LANGUAGE RankNTypes  #-}
 {-#  LANGUAGE ScopedTypeVariables  #-}
 {-#  LANGUAGE OverlappingInstances  #-} --  Only for the Show
+{-#  LANGUAGE ViewPatterns, FlexibleContexts  #-}
 
 {- |
 
@@ -58,6 +59,7 @@ module Data.Generic.Diff (
 ) where
 
 import Data.Type.Equality ( (:~:)(..) )
+import System.IO.Unsafe
 
 -- | Edit script type for two single values.
 type EditScript f x y = EditScriptL f (Cons x Nil) (Cons y Nil)
@@ -230,6 +232,7 @@ data Con :: (* -> * -> *) -> * -> * where
 
 class List f ts where
   list :: IsList f ts
+  --lift :: prox t -> IsList f ts -> IsList f (Map t ts)
 
 data IsList :: (* -> * -> *) -> * -> * where
   IsNil   ::                               IsList f Nil
@@ -237,9 +240,50 @@ data IsList :: (* -> * -> *) -> * -> * where
 
 instance List f Nil where
   list = IsNil
+  --lift _ IsNil = IsNil
 
 instance (Type f t, List f ts) => List f (Cons t ts) where
   list = IsCons list
+  --lift p (IsCons rest) = IsCons (lift p rest)
+
+
+data BFam :: (* -> *) -> * -> * -> * where
+  False' :: BFam p Bool Nil
+  True' :: BFam p Bool Nil
+  IZE :: List (BFam p) ts => BFam p t ts -> BFam p (p t) (Map p ts)
+  Cut :: BFam p t (Cons t' ts) -> BFam p t ts
+
+instance Family (BFam IO) where
+  False' `decEq` False' = Just (Refl, Refl)
+  True' `decEq` True' = Just (Refl, Refl)
+  IZE l `decEq` IZE r = do (Refl, Refl) <- l `decEq` r; return (Refl, Refl)
+  _ `decEq` _ = Nothing
+
+  fields False' False = Just CNil
+  fields True' True = Just CNil
+  fields (IZE d) (unsafePerformIO -> v) = fmap (lift d) (fields d v)
+  fields _ _ = Nothing
+
+  apply False' CNil = False
+  apply True' CNil = True
+  apply (IZE False') _ = return False
+  apply (IZE d) ins = return $ apply d (lower d ins)
+
+  string False' = "False"
+  string True' = "True"
+  string (IZE i) = '!' : string i
+
+lift :: List (BFam p) ts => BFam p t ts -> ts -> Map IO ts
+lift f = lift' f list
+lift' :: BFam p t ts -> IsList (BFam p) ts -> ts -> Map IO ts
+lift' _ IsNil CNil = CNil
+lift' f (IsCons r) (CCons h t) = CCons (return h) (lift' (Cut f) r t)
+
+lower :: List (BFam p) ts => BFam p t ts -> Map IO ts -> ts
+lower f = lower' f list
+lower' :: BFam p t ts -> IsList (BFam p) ts -> Map IO ts -> ts
+lower' _ IsNil CNil = CNil
+lower' f (IsCons r) (CCons h t) = CCons (unsafePerformIO h) (lower' (Cut f) r t)
 
 {- |
 
@@ -279,6 +323,11 @@ data EditScriptL :: (* -> * -> *) -> * -> * -> * where
 type family    Append txs tys :: * where
   Append Nil            tys = tys
   Append (Cons tx txs)  tys = Cons tx (Append txs tys)
+
+type family    Map f ts :: * where
+  Map f Nil = Nil
+  Map f (Cons t ts) = Cons (f t) (Map f ts)
+
 
 appendList :: IsList f txs -> IsList f tys -> IsList f (Append txs tys)
 appendList IsNil         isys = isys
