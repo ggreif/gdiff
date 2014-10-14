@@ -273,6 +273,12 @@ instance Family (BFam IO) where
   string True' = "True"
   string (IZE i) = '!' : string i
 
+instance Type (BFam IO) Bool where
+  constructors = [Concr False', Concr True']
+
+instance Type (BFam p) Bool => Type (BFam p) (p Bool) where
+  constructors = [Concr $ IZE False', Concr $ IZE True'] -- todo: map
+
 lift :: List (BFam p) ts => BFam p t ts -> ts -> Map IO ts
 lift f = lift' f list
 lift' :: BFam p t ts -> IsList (BFam p) ts -> ts -> Map IO ts
@@ -284,6 +290,9 @@ lower f = lower' f list
 lower' :: BFam p t ts -> IsList (BFam p) ts -> Map IO ts -> ts
 lower' _ IsNil CNil = CNil
 lower' f (IsCons r) (CCons h t) = CCons (unsafePerformIO h) (lower' (Cut f) r t)
+
+diffIO :: IO Bool -> IO Bool -> EditScript (BFam IO) (IO Bool) (IO Bool)
+diffIO = diff
 
 {- |
 
