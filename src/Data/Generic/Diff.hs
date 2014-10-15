@@ -8,7 +8,7 @@
 {-#  LANGUAGE RankNTypes  #-}
 {-#  LANGUAGE ScopedTypeVariables  #-}
 {-#  LANGUAGE OverlappingInstances  #-} --  Only for the Show
-{-#  LANGUAGE ViewPatterns, FlexibleContexts, ImpredicativeTypes, StandaloneDeriving  #-}
+{-#  LANGUAGE ViewPatterns, FlexibleContexts, ImpredicativeTypes, StandaloneDeriving, DeriveFunctor, UndecidableInstances  #-}
 
 {- |
 
@@ -83,7 +83,7 @@ diff x y = diffL (CCons x CNil) (CCons y CNil)
 patchL :: forall f txs tys . EditScriptL f txs tys -> txs -> tys
 patchL (Ins  c   d) = insert apply c .  patchL d
 patchL (Del  c   d) =                   patchL d . delete c
-patchL (Cpy  c   d) = insert copy  c .  patchL d . delete c
+patchL (Cpy  c   d) = insert {-copy-}apply  c .  patchL d . delete c
 patchL (CpyTree  d) = \(CCons x xs) -> CCons x . patchL d $ xs
 patchL End          = \CNil -> CNil
 
@@ -187,10 +187,6 @@ class Family f where
     -- constructors, the list of arguments should be 'CNil', but you project
     -- out the value saved with the family constructor.
     apply     ::                f t ts -> ts -> t
-    -- | When the node matches, but the subtrees not necessarily, permit
-    -- the user to optimize
-    copy      ::                f t ts -> ts -> t
-    copy = apply
     -- | For 'show'ing the constructors from the family.
     string    ::                f t ts -> String
 
@@ -254,7 +250,7 @@ data BFam :: (* -> *) -> * -> * -> * where
   IZE :: List (BFam p) ts => BFam p t ts -> BFam p (p t) (Map p ts)
   Cut :: BFam p t (Cons t' ts) -> BFam p t ts
 
-instance Family (BFam IO) where
+instance Ize (BFam m) m => Family (BFam m) where
   False' `decEq` False' = Just (Refl, Refl)
   True' `decEq` True' = Just (Refl, Refl)
   Just' l `decEq` Just' r = do (Refl, Refl) <- l `decEq` r; return (Refl, Refl)
@@ -268,7 +264,7 @@ instance Family (BFam IO) where
   fields (Pair a b) (as, bs) = liftM2 (l a `append` l b) (fields a as) (fields b bs)
     where l :: List f ts => f t ts -> IsList f ts
           l _ = list
-  fields (IZE d) (unsafePerformIO -> v) = fmap (lift d) (fields d v)
+  fields (IZE d) (extract d -> v) = fmap (lift d) (fields d v)
   fields _ _ = Nothing
 
   apply False' CNil = False
@@ -284,10 +280,33 @@ instance Family (BFam IO) where
   string (Pair a b) = "(" ++ string a ++ ", " ++ string b ++ ")"
   string (IZE i) = '!' : string i
 
+newtype EIO t = EIO (Either t (IO t))
+
+instance Functor EIO where
+  fmap f (EIO (Left t)) = EIO . Left $ f t
+  fmap f (EIO (Right iot)) = EIO . Right $ fmap f iot
+
+instance Monad EIO where
+  return = EIO . Left
+  EIO (Left a) >>= f = f a
+  --EIO (Right io) >>= f = io
+
+--class Monad m => Extract m where
+--  extract :: f t ts -> m t -> t
+
+--class (Extract m, Family f) => Ize f m where
 class (Monad m, Family f) => Ize f m where
+  extract :: f t ts -> m t -> t
   ize :: List f ts => f t ts -> Map m ts -> m t
+  -- | When the node matches, but the subtrees not necessarily, permit
+  -- the user to optimize
+  copy :: List f ts => f t ts -> t -> Map m ts -> m t
+
+--instance Extract IO where
+--  extract = const unsafePerformIO
 
 instance Ize (BFam IO) IO where
+  extract = const unsafePerformIO
   ize True' CNil = putStrLn "Licht EIN" >> return True
   ize False' CNil = putStrLn "Licht AUS" >> return False
   ize (a `Pair` b) ts = return (,) `ap` ize a as `ap` ize b bs
@@ -311,16 +330,17 @@ iFeelDirty = unsafeCoerce
 iFeelDirtier :: (forall ts . List f (Map p ts) => f t ts -> f (p t) (Map p ts) -> Con f (p t)) -> (forall ts . IsList f ts -> f t ts -> f (p t) (Map p ts) -> Con f (p t))
 iFeelDirtier = unsafeCoerce
 
+instance Ize (BFam EIO) EIO where
 
 deriving instance Show Nil
 deriving instance (Show a, Show b) => Show (Cons a b)
 
 instance Type (BFam p) a => Type (BFam p) (p a) where
-  constructors = [iFeelDirtier (\_ -> Concr) (isList cc) cc (IZE cc) | Concr cc <- constructors]
+  constructors = [iFeelDirtier (const Concr) (isList cc) cc (IZE cc) | Concr cc <- constructors]
 
-lift :: List (BFam p) ts => BFam p t ts -> ts -> Map IO ts
+lift :: Monad p => List (BFam p) ts => BFam p t ts -> ts -> Map p ts
 lift f = lift' f list
-lift' :: BFam p t ts -> IsList (BFam p) ts -> ts -> Map IO ts
+lift' :: Monad p => BFam p t ts -> IsList (BFam p) ts -> ts -> Map p ts
 lift' _ IsNil CNil = CNil
 lift' f (IsCons r) (CCons h t) = CCons (return h) (lift' (Cut f) r t)
 
