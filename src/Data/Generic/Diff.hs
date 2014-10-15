@@ -292,19 +292,12 @@ instance Monad EIO where
   EIO (Right io) >>= f = unsafePerformIO $ io >>= return . f
                            
 
---class Monad m => Extract m where
---  extract :: f t ts -> m t -> t
-
---class (Extract m, Family f) => Ize f m where
 class (Monad m, Family f) => Ize f m where
   extract :: f t ts -> m t -> t
   ize :: List f ts => f t ts -> Map m ts -> m t
   -- | When the node matches, but the subtrees not necessarily, permit
   -- the user to optimize
   copy :: List f ts => f t ts -> t -> Map m ts -> m t
-
---instance Extract IO where
---  extract = const unsafePerformIO
 
 instance Ize (BFam IO) IO where
   extract = const unsafePerformIO
