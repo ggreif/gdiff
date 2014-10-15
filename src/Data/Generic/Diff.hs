@@ -289,7 +289,8 @@ instance Functor EIO where
 instance Monad EIO where
   return = EIO . Left
   EIO (Left a) >>= f = f a
-  --EIO (Right io) >>= f = io
+  EIO (Right io) >>= f = unsafePerformIO $ io >>= return . f
+                           
 
 --class Monad m => Extract m where
 --  extract :: f t ts -> m t -> t
@@ -331,6 +332,7 @@ iFeelDirtier :: (forall ts . List f (Map p ts) => f t ts -> f (p t) (Map p ts) -
 iFeelDirtier = unsafeCoerce
 
 instance Ize (BFam EIO) EIO where
+  extract _ (EIO (Left a)) = a
 
 deriving instance Show Nil
 deriving instance (Show a, Show b) => Show (Cons a b)
