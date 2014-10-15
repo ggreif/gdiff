@@ -234,7 +234,6 @@ data Con :: (* -> * -> *) -> * -> * where
 
 class List f ts where
   list :: IsList f ts
-  --lift :: prox t -> IsList f ts -> IsList f (Map t ts)
 
 data IsList :: (* -> * -> *) -> * -> * where
   IsNil   ::                               IsList f Nil
@@ -242,18 +241,16 @@ data IsList :: (* -> * -> *) -> * -> * where
 
 instance List f Nil where
   list = IsNil
-  --lift _ IsNil = IsNil
 
 instance (Type f t, List f ts) => List f (Cons t ts) where
   list = IsCons list
-  --lift p (IsCons rest) = IsCons (lift p rest)
 
 
 data BFam :: (* -> *) -> * -> * -> * where
   False' :: BFam p Bool Nil
   True' :: BFam p Bool Nil
   Just' :: BFam p a ts -> BFam p (Maybe a) ts
-  Pair :: (List (BFam p) as, List (BFam p) bs{-, List (BFam p) (as `Append` bs)-}) => BFam p a as -> BFam p b bs -> BFam p (a, b) (as `Append` bs)
+  Pair :: (List (BFam p) as, List (BFam p) bs) => BFam p a as -> BFam p b bs -> BFam p (a, b) (as `Append` bs)
   IZE :: List (BFam p) ts => BFam p t ts -> BFam p (p t) (Map p ts)
   Cut :: BFam p t (Cons t' ts) -> BFam p t ts
 
@@ -277,7 +274,7 @@ instance Family (BFam IO) where
   apply False' CNil = False
   apply True' CNil = True
   apply (Just' d) ts = Just $ apply d ts
-  apply p@(Pair a b) ts = (apply a as, apply b bs)
+  apply (Pair a b) ts = (apply a as, apply b bs)
       where (as, bs) = split (isList a) ts
   apply (IZE False') _ = return False
   apply (IZE d) ins = return $ apply d (lower d ins)
@@ -301,12 +298,9 @@ instance Type (BFam IO) Bool where
 instance (Type (BFam IO) a, Type (BFam IO) b) => Type (BFam IO) (a, b) where
   constructors = [iFeelDirty Concr (isList cca `appendList` isList ccb) (cca `Pair` ccb) | Concr cca <- constructors, Concr ccb <- constructors]  
 
---iFeelDirty :: (forall ts . IsList f ts -> f t ts -> Con f t) -> (forall ts . List f ts => f t ts -> Con f t)
 iFeelDirty :: (forall ts . List f ts => f t ts -> Con f t) -> (forall ts . IsList f ts -> f t ts -> Con f t)
 iFeelDirty = unsafeCoerce
 
---heureka :: IsList f txs -> IsList f tys -> IsList f tzs -> Maybe (tzs :~: txs `Append` tys)
---heureka = undefined
 
 deriving instance Show Nil
 deriving instance (Show a, Show b) => Show (Cons a b)
