@@ -8,6 +8,7 @@
 {-#  LANGUAGE RankNTypes  #-}
 {-#  LANGUAGE ScopedTypeVariables  #-}
 {-#  LANGUAGE OverlappingInstances  #-} --  Only for the Show
+{-#  LANGUAGE AllowAmbiguousTypes  #-}
 
 {- |
 
@@ -58,6 +59,7 @@ module Data.Generic.Diff (
 ) where
 
 import Data.Type.Equality ( (:~:)(..) )
+import Unsafe.Coerce ( unsafeCoerce )
 
 -- | Edit script type for two single values.
 type EditScript f x y = EditScriptL f (Cons x Nil) (Cons y Nil)
@@ -287,6 +289,26 @@ appendList (IsCons isxs) isys = IsCons (appendList isxs isys)
 append :: IsList f txs -> IsList f tys -> txs -> tys -> Append txs tys
 append IsNil         _    CNil         ys = ys
 append (IsCons isxs) isys (CCons x xs) ys = CCons x (append isxs isys xs ys)
+
+
+type family Map f ts where
+  Map f Nil = Nil
+  Map f (Cons t ts) = Cons (f t) (Map f ts)
+
+data Tra :: (* -> *) -> (* -> * -> *) -> * -> * -> * where
+  Wrap :: f t ts -> Tra m f (m t) (Map m ts)
+
+--law :: (Monad m, List f ts, List f txs) => Map m (Append ts txs) :~: Map m (Append ts txs)
+--law = Refl
+
+transform :: EditScriptL f x y
+         -- -> EditScriptL (Tra n f) (Append (Map m ts) (Map m txs))  (Append (Map m ts) (Map m tys))
+         -> EditScriptL (Tra m f) (Map m x) (Map m y)
+transform = t2 . t1
+  where t1 :: EditScriptL f x y -> EditScriptL f x y
+        t1 (Cpy a scpt) = Cpy (unsafeCoerce (Wrap a)) (unsafeCoerce (transform scpt))
+        t2 :: EditScriptL f x y -> EditScriptL (Tra m f) (Map m x) (Map m y)
+        t2 = unsafeCoerce
 
 instance Show (EditScriptL f txs tys) where
   show (Ins  c   d)  = "Ins "  ++ string c  ++ " $ " ++ show d
