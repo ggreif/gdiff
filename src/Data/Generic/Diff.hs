@@ -8,7 +8,7 @@
 {-#  LANGUAGE RankNTypes  #-}
 {-#  LANGUAGE ScopedTypeVariables  #-}
 {-#  LANGUAGE OverlappingInstances  #-} --  Only for the Show
-{-#  LANGUAGE ViewPatterns, FlexibleContexts  #-}
+{-#  LANGUAGE ViewPatterns, FlexibleContexts, ImpredicativeTypes, StandaloneDeriving  #-}
 
 {- |
 
@@ -60,6 +60,8 @@ module Data.Generic.Diff (
 
 import Data.Type.Equality ( (:~:)(..) )
 import System.IO.Unsafe
+import Control.Monad
+import Unsafe.Coerce ( unsafeCoerce )
 
 -- | Edit script type for two single values.
 type EditScript f x y = EditScriptL f (Cons x Nil) (Cons y Nil)
@@ -250,31 +252,64 @@ instance (Type f t, List f ts) => List f (Cons t ts) where
 data BFam :: (* -> *) -> * -> * -> * where
   False' :: BFam p Bool Nil
   True' :: BFam p Bool Nil
+  Just' :: BFam p a ts -> BFam p (Maybe a) ts
+  Pair :: (List (BFam p) as, List (BFam p) bs{-, List (BFam p) (as `Append` bs)-}) => BFam p a as -> BFam p b bs -> BFam p (a, b) (as `Append` bs)
   IZE :: List (BFam p) ts => BFam p t ts -> BFam p (p t) (Map p ts)
   Cut :: BFam p t (Cons t' ts) -> BFam p t ts
 
 instance Family (BFam IO) where
   False' `decEq` False' = Just (Refl, Refl)
   True' `decEq` True' = Just (Refl, Refl)
+  Just' l `decEq` Just' r = do (Refl, Refl) <- l `decEq` r; return (Refl, Refl)
+  Pair l l' `decEq` Pair r r' = do (Refl, Refl) <- l `decEq` r; (Refl, Refl) <- l' `decEq` r'; return (Refl, Refl)
   IZE l `decEq` IZE r = do (Refl, Refl) <- l `decEq` r; return (Refl, Refl)
   _ `decEq` _ = Nothing
 
   fields False' False = Just CNil
   fields True' True = Just CNil
+  fields (Just' d) (Just t) = fields d t
+  fields (Pair a b) (as, bs) = liftM2 (l a `append` l b) (fields a as) (fields b bs)
+    where l :: List f ts => f t ts -> IsList f ts
+          l _ = list
   fields (IZE d) (unsafePerformIO -> v) = fmap (lift d) (fields d v)
   fields _ _ = Nothing
 
   apply False' CNil = False
   apply True' CNil = True
+  apply (Just' d) ts = Just $ apply d ts
+  apply p@(Pair a b) ts = (apply a as, apply b bs)
+      where (as, bs) = split (isList a) ts
   apply (IZE False') _ = return False
   apply (IZE d) ins = return $ apply d (lower d ins)
 
   string False' = "False"
   string True' = "True"
+  string (Just' d) = "(Just " ++ string d ++ ")"
+  string (Pair a b) = "(" ++ string a ++ ", " ++ string b ++ ")"
   string (IZE i) = '!' : string i
+
+class (Monad m, Family f) => Ize f m where
+  ize :: List f ts => f t ts -> Map m ts -> m t
+  --ize d ts = return (apply d ts)
+
+instance Ize (BFam IO) IO where
+  ize True' _ = undefined
 
 instance Type (BFam IO) Bool where
   constructors = [Concr False', Concr True']
+
+instance (Type (BFam IO) a, Type (BFam IO) b) => Type (BFam IO) (a, b) where
+  constructors = [iFeelDirty Concr (isList cca `appendList` isList ccb) (cca `Pair` ccb) | Concr cca <- constructors, Concr ccb <- constructors]  
+
+--iFeelDirty :: (forall ts . IsList f ts -> f t ts -> Con f t) -> (forall ts . List f ts => f t ts -> Con f t)
+iFeelDirty :: (forall ts . List f ts => f t ts -> Con f t) -> (forall ts . IsList f ts -> f t ts -> Con f t)
+iFeelDirty = unsafeCoerce
+
+--heureka :: IsList f txs -> IsList f tys -> IsList f tzs -> Maybe (tzs :~: txs `Append` tys)
+--heureka = undefined
+
+deriving instance Show Nil
+deriving instance (Show a, Show b) => Show (Cons a b)
 
 instance Type (BFam p) Bool => Type (BFam p) (p Bool) where
   constructors = [Concr $ IZE False', Concr $ IZE True'] -- todo: map
@@ -293,6 +328,9 @@ lower' f (IsCons r) (CCons h t) = CCons (unsafePerformIO h) (lower' (Cut f) r t)
 
 diffIO :: IO Bool -> IO Bool -> EditScript (BFam IO) (IO Bool) (IO Bool)
 diffIO = diff
+
+diffP :: (Type (BFam IO) a, Type (BFam IO) b) => (a, b) -> (a, b) -> EditScript (BFam IO) (a, b) (a, b)
+diffP = diff
 
 {- |
 
