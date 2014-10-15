@@ -276,8 +276,6 @@ instance Family (BFam IO) where
   apply (Just' d) ts = Just $ apply d ts
   apply (Pair a b) ts = (apply a as, apply b bs)
       where (as, bs) = split (isList a) ts
-  apply (IZE False') _ = return False
-  --apply (IZE d) ins = return $ apply d (lower d ins)
   apply (IZE d) ins = ize d ins
 
   string False' = "False"
@@ -288,7 +286,6 @@ instance Family (BFam IO) where
 
 class (Monad m, Family f) => Ize f m where
   ize :: List f ts => f t ts -> Map m ts -> m t
-  --ize d ts = return (apply d ts)
 
 instance Ize (BFam IO) IO where
   ize True' CNil = putStrLn "Licht EIN" >> return True
@@ -311,7 +308,6 @@ instance (Type (BFam IO) a, Type (BFam IO) b) => Type (BFam IO) (a, b) where
 iFeelDirty :: (forall ts . List f ts => f t ts -> Con f t) -> (forall ts . IsList f ts -> f t ts -> Con f t)
 iFeelDirty = unsafeCoerce
 
---iFeelDirtier :: (forall ts . List f ts => f t ts -> f (IO t) (Map IO ts) -> Con f (IO t)) -> (forall ts . IsList f ts -> f t ts -> f (IO t) (Map IO ts) -> Con f (IO t))
 iFeelDirtier :: (forall ts . List f (Map p ts) => f t ts -> f (p t) (Map p ts) -> Con f (p t)) -> (forall ts . IsList f ts -> f t ts -> f (p t) (Map p ts) -> Con f (p t))
 iFeelDirtier = unsafeCoerce
 
@@ -319,11 +315,8 @@ iFeelDirtier = unsafeCoerce
 deriving instance Show Nil
 deriving instance (Show a, Show b) => Show (Cons a b)
 
---instance Type (BFam p) Bool => Type (BFam p) (p Bool) where
---  constructors = [Concr $ IZE False', Concr $ IZE True'] -- todo: map
-
 instance Type (BFam p) a => Type (BFam p) (p a) where
-  constructors = [iFeelDirtier (\_->Concr) (isList cc) cc (IZE cc) | Concr cc <- constructors]
+  constructors = [iFeelDirtier (\_ -> Concr) (isList cc) cc (IZE cc) | Concr cc <- constructors]
 
 lift :: List (BFam p) ts => BFam p t ts -> ts -> Map IO ts
 lift f = lift' f list
@@ -331,15 +324,6 @@ lift' :: BFam p t ts -> IsList (BFam p) ts -> ts -> Map IO ts
 lift' _ IsNil CNil = CNil
 lift' f (IsCons r) (CCons h t) = CCons (return h) (lift' (Cut f) r t)
 
-{-
-lower :: List (BFam p) ts => BFam p t ts -> Map IO ts -> ts
-lower f = lower' f list
-lower' :: BFam p t ts -> IsList (BFam p) ts -> Map IO ts -> ts
-lower' _ IsNil CNil = CNil
-lower' f (IsCons r) (CCons h t) = CCons (unsafePerformIO h) (lower' (Cut f) r t)
--}
-
---diffIO :: IO Bool -> IO Bool -> EditScript (BFam IO) (IO Bool) (IO Bool)
 diffIO :: Type (BFam IO) t => IO t -> IO t -> EditScript (BFam IO) (IO t) (IO t)
 diffIO = diff
 
