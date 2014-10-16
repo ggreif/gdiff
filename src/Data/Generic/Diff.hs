@@ -320,7 +320,7 @@ instance Ize (BFam IO) IO where
 instance Ize (BFam p) p => Type (BFam p) Bool where
   constructors = [Concr False', Concr True']
 
-instance (Type (BFam IO) a, Type (BFam IO) b) => Type (BFam IO) (a, b) where
+instance (Type (BFam p) a, Type (BFam p) b) => Type (BFam p) (a, b) where
   constructors = [iFeelDirty Concr (isList cca `appendList` isList ccb) (cca `Pair` ccb) | Concr cca <- constructors, Concr ccb <- constructors]  
 
 iFeelDirty :: (forall ts . List f ts => f t ts -> Con f t) -> (forall ts . IsList f ts -> f t ts -> Con f t)
@@ -344,8 +344,12 @@ lift' :: Monad p => BFam p t ts -> IsList (BFam p) ts -> ts -> Map p ts
 lift' _ IsNil CNil = CNil
 lift' f (IsCons r) (CCons h t) = CCons (return h) (lift' (Cut f) r t)
 
-diffIO :: Type (BFam IO) t => IO t -> IO t -> EditScript (BFam IO) (IO t) (IO t)
+-- diffIO: superseded by diffM!!
+diffIO :: Type (BFam IO) (IO t) => IO t -> IO t -> EditScript (BFam IO) (IO t) (IO t)
 diffIO = diff
+
+diffM :: Type (BFam p) (p t) => p t -> p t -> EditScript (BFam p) (p t) (p t)
+diffM = diff
 
 diffP :: (Type (BFam IO) a, Type (BFam IO) b) => (a, b) -> (a, b) -> EditScript (BFam IO) (a, b) (a, b)
 diffP = diff
