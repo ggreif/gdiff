@@ -317,7 +317,7 @@ instance Ize (BFam IO) IO where
             --law :: IsList (BFam IO) (Append (Map IO as) (Map IO bs)) -> IsList (BFam IO) (Map IO (as `Append` bs))
             --law = unsafeCoerce
 
-instance Type (BFam IO) Bool where
+instance Ize (BFam p) p => Type (BFam p) Bool where
   constructors = [Concr False', Concr True']
 
 instance (Type (BFam IO) a, Type (BFam IO) b) => Type (BFam IO) (a, b) where
