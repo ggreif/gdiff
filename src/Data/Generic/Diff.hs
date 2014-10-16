@@ -60,6 +60,7 @@ module Data.Generic.Diff (
 
 import Data.Type.Equality ( (:~:)(..) )
 import System.IO.Unsafe
+import Control.Applicative
 import Control.Monad
 import Unsafe.Coerce ( unsafeCoerce )
 
@@ -285,6 +286,10 @@ newtype EIO t = EIO (Either t (IO t))
 instance Functor EIO where
   fmap f (EIO (Left t)) = EIO . Left $ f t
   fmap f (EIO (Right iot)) = EIO . Right $ fmap f iot
+
+instance Applicative EIO where
+  pure = return
+  (<*>) = ap
 
 instance Monad EIO where
   return = EIO . Left
