@@ -342,9 +342,6 @@ iFeelDirty = unsafeCoerce
 iFeelDirtier :: (forall ts . List f (Map p ts) => f t ts -> f (p t) (Map p ts) -> Con f (p t)) -> (forall ts . IsList f ts -> f t ts -> f (p t) (Map p ts) -> Con f (p t))
 iFeelDirtier = unsafeCoerce
 
---instance Ize (BFam EIO) EIO where
---  extract _ (EIO (Left a)) = a
-
 instance Show a => Show (EIO a) where
   show (EIO (Left a)) = show a
   show (EIO (Right io)) = "<an IO action>"
