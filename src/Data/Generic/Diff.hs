@@ -317,6 +317,19 @@ instance Ize (BFam IO) IO where
             --law :: IsList (BFam IO) (Append (Map IO as) (Map IO bs)) -> IsList (BFam IO) (Map IO (as `Append` bs))
             --law = unsafeCoerce
 
+liftEIO = EIO . Right
+
+instance Ize (BFam EIO) EIO where
+  extract _ (EIO (Left a)) = a
+  ize True' CNil = liftEIO (putStrLn "Licht EIN") >> return True
+  ize False' CNil = liftEIO (putStrLn "Licht AUS") >> return False
+  ize (a `Pair` b) ts = return (,) `ap` ize a as `ap` ize b bs
+      where (as, bs) = split (isList a) (unsafeCoerce ts) -- NEED ASSURANCE
+            split :: IsList f txs -> Append (Map EIO txs) tys -> (Map EIO txs, tys)
+            split IsNil         ys              = (CNil, ys)
+            split (IsCons isxs) (CCons x xsys)  =  let  (xs, ys) = split isxs xsys
+                                                   in   (CCons x xs, ys)
+ 
 instance Ize (BFam p) p => Type (BFam p) Bool where
   constructors = [Concr False', Concr True']
 
@@ -329,8 +342,12 @@ iFeelDirty = unsafeCoerce
 iFeelDirtier :: (forall ts . List f (Map p ts) => f t ts -> f (p t) (Map p ts) -> Con f (p t)) -> (forall ts . IsList f ts -> f t ts -> f (p t) (Map p ts) -> Con f (p t))
 iFeelDirtier = unsafeCoerce
 
-instance Ize (BFam EIO) EIO where
-  extract _ (EIO (Left a)) = a
+--instance Ize (BFam EIO) EIO where
+--  extract _ (EIO (Left a)) = a
+
+instance Show a => Show (EIO a) where
+  show (EIO (Left a)) = show a
+  show (EIO (Right io)) = "<an IO action>"
 
 deriving instance Show Nil
 deriving instance (Show a, Show b) => Show (Cons a b)
