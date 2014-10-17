@@ -264,7 +264,7 @@ data BFam :: (* -> *) -> * -> * -> * where
   Pair :: (List (BFam p) as, List (BFam p) bs) => BFam p a as -> BFam p b bs -> BFam p (a, b) (as `Append` bs)
   ListNil :: List (BFam p) as => BFam p a as -> BFam p [a] Nil
   ListCons :: List (BFam p) as => BFam p a as -> BFam p [a] (a `Cons` [a] `Cons` Nil)
-  --ListCons :: List (BFam p) as => BFam p a as -> BFam p [a] ([a] `Cons` as)
+  ListCons' :: List (BFam p) as => BFam p a as -> BFam p [a] ([a] `Cons` as) -- non-move
   IZE :: List (BFam p) ts => BFam p t ts -> BFam p (p t) (Map p ts)
   --IZE :: (Ize BFam p, List (BFam p) ts) => BFam p t ts -> BFam p (p t) (Map p ts)
 
@@ -272,8 +272,7 @@ infixr 5 `Cons`
 infixr 5 `CCons`
 
 instance Type (BFam p) a => Type (BFam p) [a] where
-  --constructors = Concr ListNil : [iFeelDirty Concr (IsCons $ isList cc) (ListCons cc) | Concr cc <- constructors]
-  --constructors = [Concr (ListNil cc) | Concr cc <- constructors] ++ [Concr (ListCons cc) | Concr cc <- constructors]
+  --constructors = Concr ListNil : [iFeelDirty Concr (IsCons $ isList cc) (ListCons cc) | Concr cc <- constructors]  -- non-move
   constructors = head [Concr (ListNil cc) | Concr cc <- constructors] : [Concr (ListCons cc) | Concr cc <- constructors]
 
 instance Ize BFam m => Family (BFam m) where
@@ -289,8 +288,7 @@ instance Ize BFam m => Family (BFam m) where
   fields False' False = Just CNil
   fields True' True = Just CNil
   fields (ListNil _) [] = Just CNil
-  --fields (ListCons d) (a:as) = Just (a `CCons` fields d as)
-  --fields (ListCons d) (a:as) = do fs <- fields d a; return $ as `CCons` fs
+  --fields (ListCons d) (a:as) = do fs <- fields d a; return $ as `CCons` fs  -- non-move
   fields (ListCons d) (a:as) = return $ a `CCons` as `CCons` CNil
   fields (Just' d) (Just t) = fields d t
   fields (Pair a b) (as, bs) = liftM2 (isList a `append` isList b) (fields a as) (fields b bs)
@@ -300,6 +298,7 @@ instance Ize BFam m => Family (BFam m) where
   apply False' CNil = False
   apply True' CNil = True
   apply (ListNil _) CNil = []
+  apply (ListCons d) (a `CCons` as `CCons` CNil) = a : as
   apply (Just' d) ts = Just $ apply d ts
   apply (Pair a b) ts = (apply a as, apply b bs)
       where (as, bs) = split (isList a) ts
