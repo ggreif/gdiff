@@ -322,7 +322,8 @@ class (Monad m, Family (f m)) => Ize f m where
 
 instance Ize BFam IO where
   extract = const unsafePerformIO
-  --copy 
+  --copy True' CNil = True
+  --copy False' CNil = False
   ize True' CNil = putStrLn "Licht EIN" >> return True
   ize False' CNil = putStrLn "Licht AUS" >> return False
   ize (a `Pair` b) ts = return (,) `ap` ize a as `ap` ize b bs
@@ -338,6 +339,11 @@ liftE = E . Right
 
 instance Ize BFam (E IO) where
   extract _ (E (Left a)) = a
+  --copy True' CNil = True
+  --copy False' CNil = False
+  copy (IZE True') parts = return True -- $ apply True' parts
+  copy (IZE False') parts = return False
+  copy (IZE what) parts = error $ "what to do with " -- ++ show heh ++ " parts: " ++ show parts
   ize True' CNil = liftE (putStrLn "Licht EIN") >> return True
   ize False' CNil = liftE (putStrLn "Licht AUS") >> return False
   ize (a `Pair` b) ts = return (,) `ap` ize a as `ap` ize b bs
