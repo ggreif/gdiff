@@ -317,10 +317,12 @@ class (Monad m, Family (f m)) => Ize f m where
   -- | When the node matches, but the subtrees not necessarily,
   -- then permit the user to optimize
   copy :: List (f m) ts => f m t ts -> ts -> t
+  copy = apply
   --copy :: List f ts => f t ts -> {-t ->-} Map m ts -> m t
 
 instance Ize BFam IO where
   extract = const unsafePerformIO
+  --copy 
   ize True' CNil = putStrLn "Licht EIN" >> return True
   ize False' CNil = putStrLn "Licht AUS" >> return False
   ize (a `Pair` b) ts = return (,) `ap` ize a as `ap` ize b bs
@@ -332,12 +334,12 @@ instance Ize BFam IO where
             --law :: IsList (BFam IO) (Append (Map IO as) (Map IO bs)) -> IsList (BFam IO) (Map IO (as `Append` bs))
             --law = unsafeCoerce
 
-liftEIO = E . Right
+liftE = E . Right
 
 instance Ize BFam (E IO) where
   extract _ (E (Left a)) = a
-  ize True' CNil = liftEIO (putStrLn "Licht EIN") >> return True
-  ize False' CNil = liftEIO (putStrLn "Licht AUS") >> return False
+  ize True' CNil = liftE (putStrLn "Licht EIN") >> return True
+  ize False' CNil = liftE (putStrLn "Licht AUS") >> return False
   ize (a `Pair` b) ts = return (,) `ap` ize a as `ap` ize b bs
       where (as, bs) = split (isList a) (unsafeCoerce ts) -- NEED ASSURANCE
             split :: IsList f txs -> Append (Map (E IO) txs) tys -> (Map (E IO) txs, tys)
@@ -367,11 +369,11 @@ deriving instance (Show a, Show b) => Show (Cons a b)
 instance Type (BFam p) a => Type (BFam p) (p a) where
   constructors = [iFeelDirtier (const Concr) (isList cc) cc (IZE cc) | Concr cc <- constructors]
 
-lift :: Monad p => List (BFam p) ts => BFam p t ts -> ts -> Map p ts
-lift f = lift' f list
-lift' :: Monad p => BFam p t ts -> IsList (BFam p) ts -> ts -> Map p ts
-lift' _ IsNil CNil = CNil
-lift' f (IsCons r) (CCons h t) = CCons (return h) (lift' (Cut f) r t)
+--lift :: Monad p => List (BFam p) ts => BFam p t ts -> ts -> Map p ts
+lift f = go f list
+    where go :: Monad p => BFam p t ts -> IsList (BFam p) ts -> ts -> Map p ts
+          go _ IsNil CNil = CNil
+          go f (IsCons r) (CCons h t) = CCons (return h) (go (Cut f) r t)
 
 -- diffIO: superseded by diffM!!
 diffIO :: Type (BFam IO) (IO t) => IO t -> IO t -> EditScript (BFam IO) (IO t) (IO t)
