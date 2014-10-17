@@ -280,6 +280,8 @@ instance Ize BFam m => Family (BFam m) where
   True' `decEq` True' = Just (Refl, Refl)
   Just' l `decEq` Just' r = do (Refl, Refl) <- l `decEq` r; return (Refl, Refl)
   Pair l l' `decEq` Pair r r' = do (Refl, Refl) <- l `decEq` r; (Refl, Refl) <- l' `decEq` r'; return (Refl, Refl)
+  --ListNil l `decEq` ListNil r = do (Refl, Refl) <- l `decEq` r; return (Refl, Refl)
+  ListCons l `decEq` ListCons r = do (Refl, Refl) <- l `decEq` r; return (Refl, Refl)
   IZE l `decEq` IZE r = do (Refl, Refl) <- l `decEq` r; return (Refl, Refl)
   _ `decEq` _ = Nothing
 
@@ -305,6 +307,8 @@ instance Ize BFam m => Family (BFam m) where
   string False' = "False"
   string True' = "True"
   string (Just' d) = "(Just " ++ string d ++ ")"
+  string ListNil = "[]"
+  string (ListCons d) = "[" ++ string d ++ "]"
   string (Pair a b) = "(" ++ string a ++ ", " ++ string b ++ ")"
   string (IZE i) = '!' : string i
 
