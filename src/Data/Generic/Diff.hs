@@ -281,20 +281,20 @@ instance Ize (BFam m) m => Family (BFam m) where
   string (Pair a b) = "(" ++ string a ++ ", " ++ string b ++ ")"
   string (IZE i) = '!' : string i
 
-newtype EIO t = EIO (Either t (IO t))
+newtype E m t = E (Either t (m t))
 
-instance Functor EIO where
-  fmap f (EIO (Left t)) = EIO . Left $ f t
-  fmap f (EIO (Right iot)) = EIO . Right $ fmap f iot
+instance Functor m => Functor (E m) where
+  fmap f (E (Left t)) = E . Left $ f t
+  fmap f (E (Right m)) = E . Right $ fmap f m
 
-instance Applicative EIO where
+instance (Functor (E m), Monad (E m)) => Applicative (E m) where
   pure = return
   (<*>) = ap
 
-instance Monad EIO where
-  return = EIO . Left
-  EIO (Left a) >>= f = f a
-  EIO (Right io) >>= f = unsafePerformIO $ io >>= return . f
+instance Monad (E IO) where
+  return = E . Left
+  E (Left a) >>= f = f a
+  E (Right io) >>= f = unsafePerformIO $ io >>= return . f
                            
 
 class (Monad m, Family f) => Ize f m where
@@ -317,15 +317,15 @@ instance Ize (BFam IO) IO where
             --law :: IsList (BFam IO) (Append (Map IO as) (Map IO bs)) -> IsList (BFam IO) (Map IO (as `Append` bs))
             --law = unsafeCoerce
 
-liftEIO = EIO . Right
+liftEIO = E . Right
 
-instance Ize (BFam EIO) EIO where
-  extract _ (EIO (Left a)) = a
+instance Ize (BFam (E IO)) (E IO) where
+  extract _ (E (Left a)) = a
   ize True' CNil = liftEIO (putStrLn "Licht EIN") >> return True
   ize False' CNil = liftEIO (putStrLn "Licht AUS") >> return False
   ize (a `Pair` b) ts = return (,) `ap` ize a as `ap` ize b bs
       where (as, bs) = split (isList a) (unsafeCoerce ts) -- NEED ASSURANCE
-            split :: IsList f txs -> Append (Map EIO txs) tys -> (Map EIO txs, tys)
+            split :: IsList f txs -> Append (Map (E IO) txs) tys -> (Map (E IO) txs, tys)
             split IsNil         ys              = (CNil, ys)
             split (IsCons isxs) (CCons x xsys)  =  let  (xs, ys) = split isxs xsys
                                                    in   (CCons x xs, ys)
@@ -342,9 +342,9 @@ iFeelDirty = unsafeCoerce
 iFeelDirtier :: (forall ts . List f (Map p ts) => f t ts -> f (p t) (Map p ts) -> Con f (p t)) -> (forall ts . IsList f ts -> f t ts -> f (p t) (Map p ts) -> Con f (p t))
 iFeelDirtier = unsafeCoerce
 
-instance Show a => Show (EIO a) where
-  show (EIO (Left a)) = show a
-  show (EIO (Right io)) = "<an IO action>"
+instance Show a => Show (E IO a) where
+  show (E (Left a)) = show a
+  show (E (Right m)) = "<an action>"
 
 deriving instance Show Nil
 deriving instance (Show a, Show b) => Show (Cons a b)
