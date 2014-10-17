@@ -264,7 +264,7 @@ data BFam :: (* -> *) -> * -> * -> * where
   Pair :: (List (BFam p) as, List (BFam p) bs) => BFam p a as -> BFam p b bs -> BFam p (a, b) (as `Append` bs)
   IZE :: List (BFam p) ts => BFam p t ts -> BFam p (p t) (Map p ts)
   --IZE :: (Ize BFam p, List (BFam p) ts) => BFam p t ts -> BFam p (p t) (Map p ts)
-  Cut :: BFam p t (Cons t' ts) -> BFam p t ts
+  --Cut :: BFam p t (Cons t' ts) -> BFam p t ts
 
 instance Ize BFam m => Family (BFam m) where
   False' `decEq` False' = Just (Refl, Refl)
@@ -378,7 +378,9 @@ instance Type (BFam p) a => Type (BFam p) (p a) where
 lift f = go f list
     where go :: Monad p => BFam p t ts -> IsList (BFam p) ts -> ts -> Map p ts
           go _ IsNil CNil = CNil
-          go f (IsCons r) (CCons h t) = CCons (return h) (go (Cut f) r t)
+          go f (IsCons r) (CCons h t) = CCons (return h) (go (cut f) r t)
+          cut :: BFam p t (Cons t' ts) -> BFam p t ts
+          cut = undefined
 
 -- diffIO: superseded by diffM!!
 diffIO :: Type (BFam IO) (IO t) => IO t -> IO t -> EditScript (BFam IO) (IO t) (IO t)
