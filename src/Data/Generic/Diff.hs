@@ -263,6 +263,7 @@ data BFam :: (* -> *) -> * -> * -> * where
   Just' :: BFam p a ts -> BFam p (Maybe a) ts
   Pair :: (List (BFam p) as, List (BFam p) bs) => BFam p a as -> BFam p b bs -> BFam p (a, b) (as `Append` bs)
   IZE :: List (BFam p) ts => BFam p t ts -> BFam p (p t) (Map p ts)
+  --IZE :: (Ize BFam p, List (BFam p) ts) => BFam p t ts -> BFam p (p t) (Map p ts)
   Cut :: BFam p t (Cons t' ts) -> BFam p t ts
 
 instance Ize BFam m => Family (BFam m) where
@@ -282,7 +283,7 @@ instance Ize BFam m => Family (BFam m) where
   fields (IZE d) (extract d -> v) = fmap (lift d) (fields d v)
   fields _ _ = Nothing
 
-  apply False' CNil = False -- TODO? copy False' CNil
+  apply False' CNil = False
   apply True' CNil = True
   apply (Just' d) ts = Just $ apply d ts
   apply (Pair a b) ts = (apply a as, apply b bs)
@@ -318,12 +319,9 @@ class (Monad m, Family (f m)) => Ize f m where
   -- then permit the user to optimize
   copy :: List (f m) ts => f m t ts -> ts -> t
   copy = apply
-  --copy :: List f ts => f t ts -> {-t ->-} Map m ts -> m t
 
 instance Ize BFam IO where
   extract = const unsafePerformIO
-  --copy True' CNil = True
-  --copy False' CNil = False
   ize True' CNil = putStrLn "Licht EIN" >> return True
   ize False' CNil = putStrLn "Licht AUS" >> return False
   ize (a `Pair` b) ts = return (,) `ap` ize a as `ap` ize b bs
@@ -339,13 +337,11 @@ liftE = E . Right
 
 instance Ize BFam (E IO) where
   extract _ (E (Left a)) = a
-  --copy True' CNil = True
-  --copy False' CNil = False
-  copy (IZE True') parts = return True -- $ apply True' parts
+  copy (IZE True') parts = return True -- $ apply True' parts -- DOABLE: Map must be injective to make this work!
+  --copy (IZE True') parts = return $ copy True' parts -- DOABLE: Map must be injective to make this work!
   copy (IZE False') parts = return False
   copy (IZE what) parts = error $ "what to do with " -- ++ show heh ++ " parts: " ++ show parts
-  --ize True' CNil = liftE (putStrLn "Licht EIN") >> (return $ copy True' CNil)
-  --ize True' CNil = liftE (putStrLn "Licht EIN") >> (return $ apply True' CNil)
+  --ize True' CNil = liftE (putStrLn "Licht EIN") >> (return $ apply True' CNil) -- DOABLE: Map must be injective to make this work!
   ize True' CNil = liftE (putStrLn "Licht EIN") >> copy (IZE True') CNil -- WORKS
   --ize True' CNil = liftE (putStrLn "Licht EIN") >> return True
   ize False' CNil = liftE (putStrLn "Licht AUS") >> return False
@@ -375,10 +371,10 @@ instance Show a => Show (E IO a) where
 deriving instance Show Nil
 deriving instance (Show a, Show b) => Show (Cons a b)
 
+--instance (Ize BFam p, Type (BFam p) a) => Type (BFam p) (p a) where -- DOABLE!
 instance Type (BFam p) a => Type (BFam p) (p a) where
   constructors = [iFeelDirtier (const Concr) (isList cc) cc (IZE cc) | Concr cc <- constructors]
 
---lift :: Monad p => List (BFam p) ts => BFam p t ts -> ts -> Map p ts
 lift f = go f list
     where go :: Monad p => BFam p t ts -> IsList (BFam p) ts -> ts -> Map p ts
           go _ IsNil CNil = CNil
