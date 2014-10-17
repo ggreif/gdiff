@@ -89,13 +89,13 @@ patchL (CpyTree  d) = \(CCons x xs) -> CCons x . patchL d $ xs
 patchL End          = \CNil -> CNil
 
 -- | Apply the edit script to a value.
-patchM :: Ize (f m) m => EditScript (f m) x y -> x -> y
+patchM :: Ize f m => EditScript (f m) x y -> x -> y
 patchM d x = case patchLM d (CCons x CNil) of
                 CCons y CNil -> y
 
 -- | Underlying implementation of 'patch', works with (heterogeneous) lists of
 -- values, potentially building monadic actions along the way.
-patchLM :: forall f m txs tys . Ize f m => EditScriptL f txs tys -> txs -> tys -- (Map m tys)
+patchLM :: forall f m txs tys . Ize f m => EditScriptL (f m) txs tys -> txs -> tys -- (Map m tys)
 patchLM (Ins  c   d) = insert apply c .  patchLM d
 patchLM (Del  c   d) =                   patchLM d . delete c
 patchLM (Cpy  c   d) = insert copy  c .  patchLM d . delete c
@@ -265,7 +265,7 @@ data BFam :: (* -> *) -> * -> * -> * where
   IZE :: List (BFam p) ts => BFam p t ts -> BFam p (p t) (Map p ts)
   Cut :: BFam p t (Cons t' ts) -> BFam p t ts
 
-instance Ize (BFam m) m => Family (BFam m) where
+instance Ize BFam m => Family (BFam m) where
   False' `decEq` False' = Just (Refl, Refl)
   True' `decEq` True' = Just (Refl, Refl)
   Just' l `decEq` Just' r = do (Refl, Refl) <- l `decEq` r; return (Refl, Refl)
@@ -311,15 +311,15 @@ instance Monad (E IO) where
   E (Right io) >>= f = unsafePerformIO $ io >>= return . f
                            
 
-class (Monad m, Family f) => Ize f m where
-  extract :: f t ts -> m t -> t
-  ize :: List f ts => f t ts -> Map m ts -> m t
-  -- | When the node matches, but the subtrees not necessarily, permit
-  -- the user to optimize
-  copy :: List f ts => f t ts -> ts -> t
+class (Monad m, Family (f m)) => Ize f m where
+  extract :: f m t ts -> m t -> t
+  ize :: List (f m) ts => f m t ts -> Map m ts -> m t
+  -- | When the node matches, but the subtrees not necessarily,
+  -- then permit the user to optimize
+  copy :: List (f m) ts => f m t ts -> ts -> t
   --copy :: List f ts => f t ts -> {-t ->-} Map m ts -> m t
 
-instance Ize (BFam IO) IO where
+instance Ize BFam IO where
   extract = const unsafePerformIO
   ize True' CNil = putStrLn "Licht EIN" >> return True
   ize False' CNil = putStrLn "Licht AUS" >> return False
@@ -334,7 +334,7 @@ instance Ize (BFam IO) IO where
 
 liftEIO = E . Right
 
-instance Ize (BFam (E IO)) (E IO) where
+instance Ize BFam (E IO) where
   extract _ (E (Left a)) = a
   ize True' CNil = liftEIO (putStrLn "Licht EIN") >> return True
   ize False' CNil = liftEIO (putStrLn "Licht AUS") >> return False
@@ -345,7 +345,7 @@ instance Ize (BFam (E IO)) (E IO) where
             split (IsCons isxs) (CCons x xsys)  =  let  (xs, ys) = split isxs xsys
                                                    in   (CCons x xs, ys)
  
-instance Ize (BFam p) p => Type (BFam p) Bool where
+instance Ize BFam p => Type (BFam p) Bool where
   constructors = [Concr False', Concr True']
 
 instance (Type (BFam p) a, Type (BFam p) b) => Type (BFam p) (a, b) where
