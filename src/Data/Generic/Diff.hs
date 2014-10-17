@@ -262,7 +262,7 @@ data BFam :: (* -> *) -> * -> * -> * where
   True' :: BFam p Bool Nil
   Just' :: BFam p a ts -> BFam p (Maybe a) ts
   Pair :: (List (BFam p) as, List (BFam p) bs) => BFam p a as -> BFam p b bs -> BFam p (a, b) (as `Append` bs)
-  ListNil :: BFam p [a] Nil
+  ListNil :: List (BFam p) as => BFam p a as -> BFam p [a] Nil
   ListCons :: List (BFam p) as => BFam p a as -> BFam p [a] (a `Cons` [a] `Cons` Nil)
   --ListCons :: List (BFam p) as => BFam p a as -> BFam p [a] ([a] `Cons` as)
   IZE :: List (BFam p) ts => BFam p t ts -> BFam p (p t) (Map p ts)
@@ -273,21 +273,22 @@ infixr 5 `CCons`
 
 instance Type (BFam p) a => Type (BFam p) [a] where
   --constructors = Concr ListNil : [iFeelDirty Concr (IsCons $ isList cc) (ListCons cc) | Concr cc <- constructors]
-  constructors = Concr ListNil : [Concr (ListCons cc) | Concr cc <- constructors]
+  --constructors = [Concr (ListNil cc) | Concr cc <- constructors] ++ [Concr (ListCons cc) | Concr cc <- constructors]
+  constructors = head [Concr (ListNil cc) | Concr cc <- constructors] : [Concr (ListCons cc) | Concr cc <- constructors]
 
 instance Ize BFam m => Family (BFam m) where
   False' `decEq` False' = Just (Refl, Refl)
   True' `decEq` True' = Just (Refl, Refl)
   Just' l `decEq` Just' r = do (Refl, Refl) <- l `decEq` r; return (Refl, Refl)
   Pair l l' `decEq` Pair r r' = do (Refl, Refl) <- l `decEq` r; (Refl, Refl) <- l' `decEq` r'; return (Refl, Refl)
-  --ListNil l `decEq` ListNil r = do (Refl, Refl) <- l `decEq` r; return (Refl, Refl)
+  ListNil l `decEq` ListNil r = do (Refl, Refl) <- l `decEq` r; return (Refl, Refl)
   ListCons l `decEq` ListCons r = do (Refl, Refl) <- l `decEq` r; return (Refl, Refl)
   IZE l `decEq` IZE r = do (Refl, Refl) <- l `decEq` r; return (Refl, Refl)
   _ `decEq` _ = Nothing
 
   fields False' False = Just CNil
   fields True' True = Just CNil
-  fields ListNil [] = Just CNil
+  fields (ListNil _) [] = Just CNil
   --fields (ListCons d) (a:as) = Just (a `CCons` fields d as)
   --fields (ListCons d) (a:as) = do fs <- fields d a; return $ as `CCons` fs
   fields (ListCons d) (a:as) = return $ a `CCons` as `CCons` CNil
@@ -298,7 +299,7 @@ instance Ize BFam m => Family (BFam m) where
 
   apply False' CNil = False
   apply True' CNil = True
-  apply ListNil CNil = []
+  apply (ListNil _) CNil = []
   apply (Just' d) ts = Just $ apply d ts
   apply (Pair a b) ts = (apply a as, apply b bs)
       where (as, bs) = split (isList a) ts
@@ -307,7 +308,7 @@ instance Ize BFam m => Family (BFam m) where
   string False' = "False"
   string True' = "True"
   string (Just' d) = "(Just " ++ string d ++ ")"
-  string ListNil = "[]"
+  string (ListNil _) = "[]"
   string (ListCons d) = "[" ++ string d ++ "]"
   string (Pair a b) = "(" ++ string a ++ ", " ++ string b ++ ")"
   string (IZE i) = '!' : string i
