@@ -282,7 +282,7 @@ instance Ize BFam m => Family (BFam m) where
   fields (IZE d) (extract d -> v) = fmap (lift d) (fields d v)
   fields _ _ = Nothing
 
-  apply False' CNil = False
+  apply False' CNil = False -- TODO? copy False' CNil
   apply True' CNil = True
   apply (Just' d) ts = Just $ apply d ts
   apply (Pair a b) ts = (apply a as, apply b bs)
@@ -344,7 +344,10 @@ instance Ize BFam (E IO) where
   copy (IZE True') parts = return True -- $ apply True' parts
   copy (IZE False') parts = return False
   copy (IZE what) parts = error $ "what to do with " -- ++ show heh ++ " parts: " ++ show parts
-  ize True' CNil = liftE (putStrLn "Licht EIN") >> return True
+  --ize True' CNil = liftE (putStrLn "Licht EIN") >> (return $ copy True' CNil)
+  --ize True' CNil = liftE (putStrLn "Licht EIN") >> (return $ apply True' CNil)
+  ize True' CNil = liftE (putStrLn "Licht EIN") >> copy (IZE True') CNil -- WORKS
+  --ize True' CNil = liftE (putStrLn "Licht EIN") >> return True
   ize False' CNil = liftE (putStrLn "Licht AUS") >> return False
   ize (a `Pair` b) ts = return (,) `ap` ize a as `ap` ize b bs
       where (as, bs) = split (isList a) (unsafeCoerce ts) -- NEED ASSURANCE
