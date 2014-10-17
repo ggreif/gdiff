@@ -262,9 +262,17 @@ data BFam :: (* -> *) -> * -> * -> * where
   True' :: BFam p Bool Nil
   Just' :: BFam p a ts -> BFam p (Maybe a) ts
   Pair :: (List (BFam p) as, List (BFam p) bs) => BFam p a as -> BFam p b bs -> BFam p (a, b) (as `Append` bs)
+  ListNil :: BFam p [a] Nil
+  --ListCons :: List (BFam p) as => BFam p a as -> BFam p [a] (a `Cons` [a] `Cons` Nil)
+  ListCons :: List (BFam p) as => BFam p a as -> BFam p [a] ([a] `Cons` as)
   IZE :: List (BFam p) ts => BFam p t ts -> BFam p (p t) (Map p ts)
   --IZE :: (Ize BFam p, List (BFam p) ts) => BFam p t ts -> BFam p (p t) (Map p ts)
-  --Cut :: BFam p t (Cons t' ts) -> BFam p t ts
+
+infixr 5 `Cons`
+infixr 5 `CCons`
+
+instance Type (BFam p) a => Type (BFam p) [a] where
+  constructors = Concr ListNil : [iFeelDirty Concr (IsCons $ isList cc) (ListCons cc) | Concr cc <- constructors]
 
 instance Ize BFam m => Family (BFam m) where
   False' `decEq` False' = Just (Refl, Refl)
@@ -276,15 +284,17 @@ instance Ize BFam m => Family (BFam m) where
 
   fields False' False = Just CNil
   fields True' True = Just CNil
+  fields ListNil [] = Just CNil
+  --fields (ListCons d) (a:as) = Just (a `CCons` fields d as)
+  fields (ListCons d) (a:as) = do fs <- fields d a; return $ as `CCons` fs
   fields (Just' d) (Just t) = fields d t
-  fields (Pair a b) (as, bs) = liftM2 (l a `append` l b) (fields a as) (fields b bs)
-    where l :: List f ts => f t ts -> IsList f ts
-          l _ = list
+  fields (Pair a b) (as, bs) = liftM2 (isList a `append` isList b) (fields a as) (fields b bs)
   fields (IZE d) (extract d -> v) = fmap (lift d) (fields d v)
   fields _ _ = Nothing
 
   apply False' CNil = False
   apply True' CNil = True
+  apply ListNil CNil = []
   apply (Just' d) ts = Just $ apply d ts
   apply (Pair a b) ts = (apply a as, apply b bs)
       where (as, bs) = split (isList a) ts
