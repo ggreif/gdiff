@@ -88,6 +88,20 @@ patchL (Cpy  c   d) = insert {-copy-}apply  c .  patchL d . delete c
 patchL (CpyTree  d) = \(CCons x xs) -> CCons x . patchL d $ xs
 patchL End          = \CNil -> CNil
 
+-- | Apply the edit script to a value.
+patchM :: Ize (f m) m => EditScript (f m) x y -> x -> y
+patchM d x = case patchLM d (CCons x CNil) of
+                CCons y CNil -> y
+
+-- | Underlying implementation of 'patch', works with (heterogeneous) lists of
+-- values, potentially building monadic actions along the way.
+patchLM :: forall f m txs tys . Ize f m => EditScriptL f txs tys -> txs -> tys -- (Map m tys)
+patchLM (Ins  c   d) = insert apply c .  patchLM d
+patchLM (Del  c   d) =                   patchLM d . delete c
+patchLM (Cpy  c   d) = insert copy  c .  patchLM d . delete c
+patchLM (CpyTree  d) = \(CCons x xs) -> CCons x . patchLM d $ xs
+patchLM End          = \CNil -> CNil
+
 -- | Underlying implementation of 'diff', works with (heterogeneous) lists of
 -- values.
 diffL :: (Family f, List f txs, List f tys) => txs -> tys -> EditScriptL f txs tys
@@ -302,7 +316,8 @@ class (Monad m, Family f) => Ize f m where
   ize :: List f ts => f t ts -> Map m ts -> m t
   -- | When the node matches, but the subtrees not necessarily, permit
   -- the user to optimize
-  copy :: List f ts => f t ts -> t -> Map m ts -> m t
+  copy :: List f ts => f t ts -> ts -> t
+  --copy :: List f ts => f t ts -> {-t ->-} Map m ts -> m t
 
 instance Ize (BFam IO) IO where
   extract = const unsafePerformIO
