@@ -63,7 +63,6 @@ import System.IO.Unsafe
 import Control.Applicative
 import Control.Monad
 import Unsafe.Coerce ( unsafeCoerce )
-import Debug.Trace
 
 -- | Edit script type for two single values.
 type EditScript f x y = EditScriptL f (Cons x Nil) (Cons y Nil)
@@ -267,7 +266,6 @@ data BFam :: (* -> *) -> * -> * -> * where
   ListCons :: List (BFam p) as => BFam p a as -> BFam p [a] (a `Cons` [a] `Cons` Nil)
   ListCons' :: List (BFam p) as => BFam p a as -> BFam p [a] ([a] `Cons` as) -- non-move
   IZE :: List (BFam p) ts => BFam p t ts -> BFam p (p t) (Map p ts)
-  --IZE :: (Ize BFam p, List (BFam p) ts) => BFam p t ts -> BFam p (p t) (Map p ts)
 
 infixr 5 `Cons`
 infixr 5 `CCons`
@@ -289,13 +287,11 @@ instance Ize BFam m => Family (BFam m) where
   fields False' False = Just CNil
   fields True' True = Just CNil
   fields (ListNil _) [] = Just CNil
-  --fields (ListCons d) (a:as) = do fs <- fields d a; return $ as `CCons` fs  -- non-move
-  -------fields (ListCons False') (True:as) = return $ False `CCons` as `CCons` CNil
+  --fields (ListCons' _) (a:as) = do fs <- fields d a; return $ as `CCons` fs  -- non-move
   fields (ListCons _) (a:as) = return $ a `CCons` as `CCons` CNil
   fields (Just' d) (Just t) = fields d t
   fields (Pair a b) (as, bs) = liftM2 (isList a `append` isList b) (fields a as) (fields b bs)
-  fields (IZE d) (extract (trace ("##:"++string d) d) -> v) = trace ("###:"++string d) (fmap (lift d) (fields d v))
-  --fields (IZE d) (extract (trace ("##:"++string d) d) -> v) = return $ v `CCons` CNil
+  fields (IZE d) (extract d -> v) = fmap (lift d) (fields d v)
   fields _ _ = Nothing
 
   apply False' CNil = False
@@ -380,7 +376,6 @@ instance (Type (BFam p) a, Type (BFam p) b) => Type (BFam p) (a, b) where
 iFeelDirty :: (forall ts . List f ts => f t ts -> Con f t) -> (forall ts . IsList f ts -> f t ts -> Con f t)
 iFeelDirty = unsafeCoerce
 
---iFeelDirtier :: (forall ts . List f (Map p ts) => f t ts -> f (p t) (Map p ts) -> Con f (p t)) -> (forall ts . IsList f ts -> f t ts -> f (p t) (Map p ts) -> Con f (p t))
 iFeelDirtier :: (forall ts . List f (Map p ts) => f t ts -> f (p t) (Map p ts) -> Con f (p t)) -> (forall ts . IsList f (Map p ts) -> f t ts -> f (p t) (Map p ts) -> Con f (p t))
 iFeelDirtier = unsafeCoerce
 
@@ -393,14 +388,10 @@ deriving instance (Show a, Show b) => Show (Cons a b)
 
 --instance (Ize BFam p, Type (BFam p) a) => Type (BFam p) (p a) where -- DOABLE!
 instance Type (BFam p) a => Type (BFam p) (p a) where
-   ---- constructors = [iFeelDirtier (const Concr) (isList cc) cc (IZE cc) | Concr cc <- constructors]
-  constructors = [iFeelDirtier (const Concr) (liftIsList cc (isList cc)) cc (IZE cc) | Concr cc <- constructors]
-  --- NNNOOO constructors = [iFeelDirtier (const Concr) (isList $ IZE cc) cc (IZE cc) | Concr cc <- constructors]
---instance Type (BFam p) a => Type (BFam p) (p [a]) where
---  constructors = [iFeelDirtier (const Concr) (isList cc) cc (IZE cc) | Concr cc <- constructors]
+  constructors = [iFeelDirtier (const Concr) (upgradeIsList cc (isList cc)) cc (IZE cc) | Concr cc <- constructors]
 
-liftIsList :: BFam p t ts -> IsList (BFam p) ts -> IsList (BFam p) (Map p ts)
-liftIsList f is = go f is
+upgradeIsList :: BFam p t ts -> IsList (BFam p) ts -> IsList (BFam p) (Map p ts)
+upgradeIsList f is = go f is
     where go :: BFam p t ts -> IsList (BFam p) ts -> IsList (BFam p) (Map p ts)
           go _ IsNil = IsNil
           go f (IsCons r) = IsCons (go (cut f) r)
