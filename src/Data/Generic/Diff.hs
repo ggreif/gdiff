@@ -335,12 +335,6 @@ class (Monad m, Family (f m)) => Ize f m where
   copy :: List (f m) ts => f m t ts -> ts -> t
   copy = apply
   upgradeIsList :: f m t ts -> IsList (f m) ts -> IsList (f m) (Map m ts)
-{-
-  upgradeIsList _ IsNil = IsNil
-  upgradeIsList f (IsCons r) = IsCons (upgradeIsList (cut f) r)
-      where cut :: f m t (Cons t' ts) -> f m t ts
-            cut = undefined
--}
 
 instance Ize BFam IO where
   extract = const unsafePerformIO
