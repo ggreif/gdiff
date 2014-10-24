@@ -8,7 +8,7 @@
 {-#  LANGUAGE RankNTypes  #-}
 {-#  LANGUAGE ScopedTypeVariables  #-}
 {-#  LANGUAGE OverlappingInstances  #-} --  Only for the Show
-{-#  LANGUAGE ViewPatterns, FlexibleContexts, ImpredicativeTypes, StandaloneDeriving, DeriveFunctor, UndecidableInstances  #-}
+{-#  LANGUAGE ViewPatterns, FlexibleContexts, ImpredicativeTypes, StandaloneDeriving, DeriveFunctor, UndecidableInstances, IncoherentInstances  #-}
 
 {- |
 
@@ -63,6 +63,7 @@ import System.IO.Unsafe
 import Control.Applicative
 import Control.Monad
 import Unsafe.Coerce ( unsafeCoerce )
+import Debug.Trace
 
 -- | Edit script type for two single values.
 type EditScript f x y = EditScriptL f (Cons x Nil) (Cons y Nil)
@@ -272,8 +273,8 @@ infixr 5 `Cons`
 infixr 5 `CCons`
 
 instance Type (BFam p) a => Type (BFam p) [a] where
-  --constructors = Concr ListNil : [iFeelDirty Concr (IsCons $ isList cc) (ListCons cc) | Concr cc <- constructors]  -- non-move
-  constructors = head [Concr (ListNil cc) | Concr cc <- constructors] : [Concr (ListCons cc) | Concr cc <- constructors]
+  --constructors = Concr ListNil : [iFeelDirty Concr (IsCons $ isList cc) (ListCons' cc) | Concr cc <- constructors]  -- non-move
+  constructors = head [Concr (ListNil cc) | Concr cc <- constructors] : [head [Concr (ListCons cc) | Concr cc <- constructors]]
 
 instance Ize BFam m => Family (BFam m) where
   False' `decEq` False' = Just (Refl, Refl)
@@ -289,16 +290,18 @@ instance Ize BFam m => Family (BFam m) where
   fields True' True = Just CNil
   fields (ListNil _) [] = Just CNil
   --fields (ListCons d) (a:as) = do fs <- fields d a; return $ as `CCons` fs  -- non-move
-  fields (ListCons d) (a:as) = return $ a `CCons` as `CCons` CNil
+  -------fields (ListCons False') (True:as) = return $ False `CCons` as `CCons` CNil
+  fields (ListCons _) (a:as) = return $ a `CCons` as `CCons` CNil
   fields (Just' d) (Just t) = fields d t
   fields (Pair a b) (as, bs) = liftM2 (isList a `append` isList b) (fields a as) (fields b bs)
-  fields (IZE d) (extract d -> v) = fmap (lift d) (fields d v)
+  fields (IZE d) (extract (trace ("##:"++string d) d) -> v) = trace ("###:"++string d) (fmap (lift d) (fields d v))
+  --fields (IZE d) (extract (trace ("##:"++string d) d) -> v) = return $ v `CCons` CNil
   fields _ _ = Nothing
 
   apply False' CNil = False
   apply True' CNil = True
   apply (ListNil _) CNil = []
-  apply (ListCons d) (a `CCons` as `CCons` CNil) = a : as
+  apply (ListCons _) (a `CCons` as `CCons` CNil) = a : as
   apply (Just' d) ts = Just $ apply d ts
   apply (Pair a b) ts = (apply a as, apply b bs)
       where (as, bs) = split (isList a) ts
@@ -308,7 +311,7 @@ instance Ize BFam m => Family (BFam m) where
   string True' = "True"
   string (Just' d) = "(Just " ++ string d ++ ")"
   string (ListNil _) = "[]"
-  string (ListCons d) = "[" ++ string d ++ "]"
+  string (ListCons _) = "(:)"
   string (Pair a b) = "(" ++ string a ++ ", " ++ string b ++ ")"
   string (IZE i) = '!' : string i
 
@@ -377,7 +380,8 @@ instance (Type (BFam p) a, Type (BFam p) b) => Type (BFam p) (a, b) where
 iFeelDirty :: (forall ts . List f ts => f t ts -> Con f t) -> (forall ts . IsList f ts -> f t ts -> Con f t)
 iFeelDirty = unsafeCoerce
 
-iFeelDirtier :: (forall ts . List f (Map p ts) => f t ts -> f (p t) (Map p ts) -> Con f (p t)) -> (forall ts . IsList f ts -> f t ts -> f (p t) (Map p ts) -> Con f (p t))
+--iFeelDirtier :: (forall ts . List f (Map p ts) => f t ts -> f (p t) (Map p ts) -> Con f (p t)) -> (forall ts . IsList f ts -> f t ts -> f (p t) (Map p ts) -> Con f (p t))
+iFeelDirtier :: (forall ts . List f (Map p ts) => f t ts -> f (p t) (Map p ts) -> Con f (p t)) -> (forall ts . IsList f (Map p ts) -> f t ts -> f (p t) (Map p ts) -> Con f (p t))
 iFeelDirtier = unsafeCoerce
 
 instance Show a => Show (E IO a) where
@@ -389,7 +393,19 @@ deriving instance (Show a, Show b) => Show (Cons a b)
 
 --instance (Ize BFam p, Type (BFam p) a) => Type (BFam p) (p a) where -- DOABLE!
 instance Type (BFam p) a => Type (BFam p) (p a) where
-  constructors = [iFeelDirtier (const Concr) (isList cc) cc (IZE cc) | Concr cc <- constructors]
+   ---- constructors = [iFeelDirtier (const Concr) (isList cc) cc (IZE cc) | Concr cc <- constructors]
+  constructors = [iFeelDirtier (const Concr) (liftIsList cc (isList cc)) cc (IZE cc) | Concr cc <- constructors]
+  --- NNNOOO constructors = [iFeelDirtier (const Concr) (isList $ IZE cc) cc (IZE cc) | Concr cc <- constructors]
+--instance Type (BFam p) a => Type (BFam p) (p [a]) where
+--  constructors = [iFeelDirtier (const Concr) (isList cc) cc (IZE cc) | Concr cc <- constructors]
+
+liftIsList :: BFam p t ts -> IsList (BFam p) ts -> IsList (BFam p) (Map p ts)
+liftIsList f is = go f is
+    where go :: BFam p t ts -> IsList (BFam p) ts -> IsList (BFam p) (Map p ts)
+          go _ IsNil = IsNil
+          go f (IsCons r) = IsCons (go (cut f) r)
+          cut :: BFam p t (Cons t' ts) -> BFam p t ts
+          cut = undefined
 
 lift f = go f list
     where go :: Monad p => BFam p t ts -> IsList (BFam p) ts -> ts -> Map p ts
