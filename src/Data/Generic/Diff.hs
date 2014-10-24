@@ -388,15 +388,13 @@ deriving instance (Show a, Show b) => Show (Cons a b)
 
 --instance (Ize BFam p, Type (BFam p) a) => Type (BFam p) (p a) where -- DOABLE!
 instance Type (BFam p) a => Type (BFam p) (p a) where
-  constructors = [iFeelDirtier (const Concr) (upgradeIsList cc (isList cc)) cc (IZE cc) | Concr cc <- constructors]
+  constructors = [iFeelDirtier (const Concr) (upgradeIsList (isList cc)) cc (IZE cc) | Concr cc <- constructors]
 
-upgradeIsList :: BFam p t ts -> IsList (BFam p) ts -> IsList (BFam p) (Map p ts)
-upgradeIsList f is = go f is
-    where go :: BFam p t ts -> IsList (BFam p) ts -> IsList (BFam p) (Map p ts)
-          go _ IsNil = IsNil
-          go f (IsCons r) = IsCons (go (cut f) r)
-          cut :: BFam p t (Cons t' ts) -> BFam p t ts
-          cut = undefined
+upgradeIsList :: IsList (BFam p) ts -> IsList (BFam p) (Map p ts)
+upgradeIsList is = go is
+    where go :: IsList (BFam p) ts -> IsList (BFam p) (Map p ts)
+          go IsNil = IsNil
+          go (IsCons r) = IsCons (go r)
 
 lift f = go f list
     where go :: Monad p => BFam p t ts -> IsList (BFam p) ts -> ts -> Map p ts
