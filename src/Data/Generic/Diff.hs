@@ -334,7 +334,7 @@ class (Monad m, Family (f m)) => Ize f m where
   -- then permit the user to optimize
   copy :: List (f m) ts => f m t ts -> ts -> t
   copy = apply
-  upgradeIsList :: f m t ts -> IsList (f m) ts -> IsList (f m) (Map m ts)
+  upgradeIsList :: IsList (f m) ts -> IsList (f m) (Map m ts)
 
 instance Ize BFam IO where
   extract = const unsafePerformIO
@@ -348,10 +348,8 @@ instance Ize BFam IO where
                                                    in   (CCons x xs, ys)
             --law :: IsList (BFam IO) (Append (Map IO as) (Map IO bs)) -> IsList (BFam IO) (Map IO (as `Append` bs))
             --law = unsafeCoerce
-  upgradeIsList _ IsNil = IsNil
-  upgradeIsList f (IsCons r) = IsCons (upgradeIsList (cut f) r)
-      where cut :: BFam IO t (Cons t' ts) -> BFam IO t ts
-            cut = undefined
+  upgradeIsList IsNil = IsNil
+  upgradeIsList (IsCons r) = IsCons (upgradeIsList r)
 
 liftE = E . Right
 
@@ -371,10 +369,8 @@ instance Ize BFam (E IO) where
             split IsNil         ys              = (CNil, ys)
             split (IsCons isxs) (CCons x xsys)  =  let  (xs, ys) = split isxs xsys
                                                    in   (CCons x xs, ys)
-  upgradeIsList _ IsNil = IsNil
-  upgradeIsList f (IsCons r) = IsCons (upgradeIsList (cut f) r)
-      where cut :: BFam (E IO) t (Cons t' ts) -> BFam (E IO) t ts
-            cut = undefined
+  upgradeIsList IsNil = IsNil
+  upgradeIsList (IsCons r) = IsCons (upgradeIsList r)
 
 instance Ize BFam p => Type (BFam p) Bool where
   constructors = [Concr False', Concr True']
@@ -395,13 +391,8 @@ instance Show a => Show (E IO a) where
 deriving instance Show Nil
 deriving instance (Show a, Show b) => Show (Cons a b)
 
-instance (Ize BFam p, Type (BFam p) a) => Type (BFam p) (p a) where -- DOABLE!
---instance Type (BFam p) a => Type (BFam p) (p a) where
-  constructors = [iFeelDirtier (const Concr) (upgradeIsList cc (isList cc)) cc (IZE cc) | Concr cc <- constructors]
-
---upgradeIsList :: IsList (BFam p) ts -> IsList (BFam p) (Map p ts)
---upgradeIsList IsNil = IsNil
---upgradeIsList (IsCons r) = IsCons (upgradeIsList r)
+instance (Ize BFam p, Type (BFam p) a) => Type (BFam p) (p a) where
+  constructors = [iFeelDirtier (const Concr) (upgradeIsList (isList cc)) cc (IZE cc) | Concr cc <- constructors]
 
 lift f = go f list
     where go :: Monad p => BFam p t ts -> IsList (BFam p) ts -> ts -> Map p ts
