@@ -5,6 +5,8 @@
 {-#  LANGUAGE FlexibleInstances  #-}
 {-#  LANGUAGE ViewPatterns, FlexibleContexts, ImpredicativeTypes, StandaloneDeriving, DeriveFunctor, UndecidableInstances  #-}
 
+{-#  OPTIONS_GHC -Wall -fno-warn-name-shadowing  #-}
+
 module Data.Generic.Diff.Effectful ( diffM, patchM ) where
 
 import Data.Generic.Diff
@@ -109,13 +111,14 @@ instance Ize BFam IO where
   upgradeIsList IsNil = IsNil
   upgradeIsList (IsCons r) = IsCons (upgradeIsList r)
 
+liftE :: m t -> E m t
 liftE = E . Right
 
 instance Ize BFam (E IO) where
   extract _ (E (Left a)) = a
-  copy (IZE True') parts = return True -- $ apply True' parts -- DOABLE: Map must be injective to make this work!
+  copy (IZE True') _ = return True -- $ apply True' parts -- DOABLE: Map must be injective to make this work!
   --copy (IZE True') parts = return $ copy True' parts -- DOABLE: Map must be injective to make this work!
-  copy (IZE False') parts = return False
+  copy (IZE False') _ = return False
   copy (IZE what) parts = error $ "what to do with " -- ++ show heh ++ " parts: " ++ show parts
   --ize True' CNil = liftE (putStrLn "Licht EIN") >> (return $ apply True' CNil) -- DOABLE: Map must be injective to make this work!
   ize True' CNil = liftE (putStrLn "Licht EIN") >> copy (IZE True') CNil -- WORKS
@@ -144,7 +147,7 @@ iFeelDirtier = unsafeCoerce
 
 instance Show a => Show (E IO a) where
   show (E (Left a)) = show a
-  show (E (Right m)) = "<an action>"
+  show (E (Right _)) = "<an action>"
 
 instance (Ize BFam p, Type (BFam p) a) => Type (BFam p) (p a) where
   constructors = [iFeelDirtier (const Concr) (upgradeIsList (isList cc)) cc (IZE cc) | Concr cc <- constructors]
