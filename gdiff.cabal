@@ -1,9 +1,9 @@
 Name:                gdiff
-Version:             1.1
+Version:             1.2
 Category:            Data
 License:             BSD3
 License-File:        LICENSE
-Author:              Eelco Lempsink, Andres Löh
+Author:              Eelco Lempsink, Andres Löh, Gabor Greif
 Maintainer:          eelco at lempsink nl
 Synopsis:            Generic diff and patch
 
@@ -15,7 +15,11 @@ Description:
   .
   /CHANGELOG/
   .
-  1.1 (2014-XX-XX)
+  1.2 (2014-XX-XX)
+  .
+  * Expose $Effectful$ module.
+  .
+  1.1 (2014-06-27)
   .
   * Use GHC-7.8's (:~:).
   .
@@ -29,7 +33,7 @@ Description:
 
 Cabal-Version:       >= 1.6
 Build-Type:          Simple
-Tested-With:         GHC == 7.8.2
+Tested-With:         GHC == 7.8.3
 
 Homepage:            https://github.com/eelco/gdiff
 Bug-Reports:         https://github.com/eelco/gdiff/issues
@@ -38,6 +42,7 @@ Library
     Build-Depends:   base >= 4.7 && < 5
     Hs-Source-Dirs:  src
     Exposed-Modules: Data.Generic.Diff
+                     Data.Generic.Diff.Effectful
 
 Source-Repository head
     Type:     git
