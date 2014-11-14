@@ -7,7 +7,7 @@
 
 {-#  OPTIONS_GHC -Wall -fno-warn-name-shadowing  #-}
 
-module Data.Generic.Diff.Effectful ( diffM, patchM ) where
+module Data.Generic.Diff.Effectful ( diffM, patchM, Ize(..), iFeelDirtier, Map ) where
 
 import Data.Generic.Diff
 import System.IO.Unsafe
@@ -151,6 +151,8 @@ instance Show a => Show (E IO a) where
 
 instance (Ize BFam p, Type (BFam p) a) => Type (BFam p) (p a) where
   constructors = [iFeelDirtier (const Concr) (upgradeIsList (isList cc)) cc (IZE cc) | Concr cc <- constructors]
+--instance (Ize fam p, Type (fam p) a) => Type (fam p) (p a) where
+--  constructors = [iFeelDirtier (const Concr) (upgradeIsList (isList cc)) cc (IZE cc) | Concr cc <- constructors]
 
 lift f = go f list
     where go :: Monad p => BFam p t ts -> IsList (BFam p) ts -> ts -> Map p ts
@@ -163,7 +165,7 @@ lift f = go f list
 diffIO :: Type (BFam IO) (IO t) => IO t -> IO t -> EditScript (BFam IO) (IO t) (IO t)
 diffIO = diff
 
-diffM :: Type (BFam p) (p t) => p t -> p t -> EditScript (BFam p) (p t) (p t)
+diffM :: Type (fam p) (p t) => p t -> p t -> EditScript (fam p) (p t) (p t)
 diffM = diff
 
 diffP :: (Type (BFam IO) a, Type (BFam IO) b) => (a, b) -> (a, b) -> EditScript (BFam IO) (a, b) (a, b)
