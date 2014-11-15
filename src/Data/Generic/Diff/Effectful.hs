@@ -7,7 +7,7 @@
 
 {-#  OPTIONS_GHC -Wall -fno-warn-name-shadowing  #-}
 
-module Data.Generic.Diff.Effectful ( diffM, patchM, Ize(..), iFeelDirtier, Map ) where
+module Data.Generic.Diff.Effectful ( diffM, patchM, Ize(..), iFeelDirtier, iFeelDirtier', Map ) where
 
 import Data.Generic.Diff
 import System.IO.Unsafe
@@ -85,7 +85,7 @@ instance Monad (E IO) where
   return = E . Left
   E (Left a) >>= f = f a
   E (Right io) >>= f = unsafePerformIO $ io >>= return . f
-                           
+
 
 class (Monad m, Family (f m)) => Ize f m where
   extract :: f m t ts -> m t -> t
@@ -137,13 +137,21 @@ instance Ize BFam p => Type (BFam p) Bool where
   constructors = [Concr False', Concr True']
 
 instance (Type (BFam p) a, Type (BFam p) b) => Type (BFam p) (a, b) where
-  constructors = [iFeelDirty Concr (isList cca `appendList` isList ccb) (cca `Pair` ccb) | Concr cca <- constructors, Concr ccb <- constructors]  
+  constructors = [iFeelDirty Concr (isList cca `appendList` isList ccb) (cca `Pair` ccb) | Concr cca <- constructors, Concr ccb <- constructors]
+              ++ [iFeelDirty' Abstr (isList (cca undefined) `appendList` isList (ccb undefined)) (\(a, b) -> cca a `Pair` ccb b) | Abstr cca <- constructors, Abstr ccb <- constructors]
 
 iFeelDirty :: (forall ts . List f ts => f t ts -> Con f t) -> (forall ts . IsList f ts -> f t ts -> Con f t)
 iFeelDirty = unsafeCoerce
 
+iFeelDirty' :: Eq t => (forall ts . List f ts => (t -> f t ts) -> Con f t) -> (forall ts . IsList f ts -> (t -> f t ts) -> Con f t)
+iFeelDirty' = unsafeCoerce
+
 iFeelDirtier :: (forall ts . List f (Map p ts) => f t ts -> f (p t) (Map p ts) -> Con f (p t)) -> (forall ts . IsList f (Map p ts) -> f t ts -> f (p t) (Map p ts) -> Con f (p t))
 iFeelDirtier = unsafeCoerce
+
+iFeelDirtier' :: Eq t => (forall ts . List f (Map p ts) => f t ts -> (p t -> f (p t) (Map p ts)) -> Con f (p t)) -> (forall ts . IsList f (Map p ts) -> f t ts -> (p t -> f (p t) (Map p ts)) -> Con f (p t))
+iFeelDirtier' = unsafeCoerce
+
 
 instance Show a => Show (E IO a) where
   show (E (Left a)) = show a
@@ -195,4 +203,3 @@ delete c (CCons x xs) =
   case fields c x of
     Nothing  -> error "Patching failed"
     Just ts  -> append (isList c) list ts xs
-
