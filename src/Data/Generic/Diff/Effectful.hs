@@ -149,7 +149,7 @@ iFeelDirty' = unsafeCoerce
 iFeelDirtier :: (forall ts . List f (Map p ts) => f t ts -> f (p t) (Map p ts) -> Con f (p t)) -> (forall ts . IsList f (Map p ts) -> f t ts -> f (p t) (Map p ts) -> Con f (p t))
 iFeelDirtier = unsafeCoerce
 
-iFeelDirtier' :: Eq t => (forall ts . List f (Map p ts) => f t ts -> (p t -> f (p t) (Map p ts)) -> Con f (p t)) -> (forall ts . IsList f (Map p ts) -> f t ts -> (p t -> f (p t) (Map p ts)) -> Con f (p t))
+iFeelDirtier' :: Eq t => (forall ts . List f (Map p ts) => (t -> f t ts) -> (p t -> f (p t) (Map p ts)) -> Con f (p t)) -> (forall ts . IsList f (Map p ts) -> (t -> f t ts) -> (p t -> f (p t) (Map p ts)) -> Con f (p t))
 iFeelDirtier' = unsafeCoerce
 
 
