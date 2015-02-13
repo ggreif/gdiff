@@ -55,7 +55,8 @@ module Data.Generic.Diff (
     split,
     isList,
     Map,
-    Dict(..)
+    Dict(..),
+    liftedDict
 ) where
 
 import Data.Type.Equality ( (:~:)(..) )
