@@ -7,18 +7,13 @@
 
 {-#  OPTIONS_GHC -Wall -fno-warn-name-shadowing  #-}
 
-module Data.Generic.Diff.Effectful ( diffM, patchM, Ize(..), iFeelDirtier, iFeelDirtier', Map ) where
+module Data.Generic.Diff.Effectful ( diffM, patchM, Ize(..), iFeelDirtier, iFeelDirtier') where
 
 import Data.Generic.Diff
 import System.IO.Unsafe
 import Control.Applicative
 import Control.Monad
 import Unsafe.Coerce ( unsafeCoerce )
-
-type family    Map f ts :: * where
-  Map f Nil = Nil
-  Map f (Cons t ts) = Cons (f t) (Map f ts)
-
 
 data BFam :: (* -> *) -> * -> * -> * where
   False' :: BFam p Bool Nil

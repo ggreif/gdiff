@@ -5,6 +5,7 @@
 {-#  LANGUAGE FlexibleInstances  #-}
 {-#  LANGUAGE RankNTypes  #-}
 {-#  LANGUAGE StandaloneDeriving  #-}
+{-#  LANGUAGE ConstraintKinds  #-}
 
 {- |
 
@@ -52,7 +53,9 @@ module Data.Generic.Diff (
     append,
     appendList,
     split,
-    isList
+    isList,
+    Map,
+    Dict(..)
 ) where
 
 import Data.Type.Equality ( (:~:)(..) )
@@ -240,6 +243,25 @@ infixr 5 `CCons`
 
 deriving instance Show Nil
 deriving instance (Show a, Show b) => Show (Cons a b)
+
+
+type family    Map f ts :: * where
+  Map f Nil = Nil
+  Map f (Cons t ts) = Cons (f t) (Map f ts)
+
+
+data Dict c a where
+  Dict :: c a => Dict c a
+
+
+liftedDict :: (forall a . Dict (Type fam) a -> Dict (Type fam') (f a)) -> IsList fam ts -> Dict (List fam') (Map f ts)
+liftedDict _ IsNil = Dict
+liftedDict dt c@(IsCons r) = case liftedDict dt r of
+                               Dict -> case dt $ typeDict c of
+                                         Dict -> Dict
+  where typeDict :: Type fam' t => IsList fam' (t `Cons` rest) -> Dict (Type fam') t
+        typeDict _ = Dict
+
 
 {- |
 
