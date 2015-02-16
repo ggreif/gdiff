@@ -3,7 +3,7 @@
 {-#  LANGUAGE TypeOperators  #-}
 {-#  LANGUAGE MultiParamTypeClasses  #-}
 {-#  LANGUAGE FlexibleInstances  #-}
-{-#  LANGUAGE ViewPatterns, FlexibleContexts, ImpredicativeTypes, StandaloneDeriving, DeriveFunctor, UndecidableInstances, PolyKinds  #-}
+{-#  LANGUAGE ViewPatterns, FlexibleContexts, ImpredicativeTypes, StandaloneDeriving, DeriveFunctor, UndecidableInstances, PolyKinds, ScopedTypeVariables  #-}
 
 {-#  OPTIONS_GHC -Wall -fno-warn-name-shadowing  #-}
 
@@ -164,12 +164,21 @@ lift f = go f list
           cut :: BFam p t (Cons t' ts) -> BFam p t ts
           cut = undefined
 
-smash :: (Family fam, List fam ts, Monad m) => fam (f t) ts -> Map m ts -> m (f t)
-smash fam ms = smash' (isList fam) ms
+pmash :: forall fam ts m f t . (Family fam, List fam ts) => m () -> (forall a b . m a -> m b -> m b) -> fam (f t) ts -> Map m ts -> m ()
+pmash base par fam ms = go (isList fam) ms
+    where go :: IsList fam ts' -> Map m ts' -> m ()
+          go IsNil CNil = base
+          go (IsCons rest) (m `CCons` ms) = m `par` go rest ms
 
-smash' :: Monad m => IsList fam ts -> Map m ts -> m (f t)
-smash' IsNil CNil = return undefined
-smash' (IsCons rest) (m `CCons` ms) = m >> smash' rest ms
+-- implement smash in terms of pmash (kindof)
+smash' :: (Family fam, List fam ts, Monad m) => fam (f t) ts -> Map m ts -> m ()
+smash' = pmash (return undefined) (>>)
+
+smash :: (Family fam, List fam ts, Monad m) => fam (f t) ts -> Map m ts -> m (f t)
+smash fam ms = go (isList fam) ms
+    where go :: Monad m => IsList fam ts -> Map m ts -> m (f t)
+          go IsNil CNil = return undefined
+          go (IsCons rest) (m `CCons` ms) = m >> go rest ms
 
 -- diffIO: superseded by diffM!!
 diffIO :: Type (BFam IO) (IO t) => IO t -> IO t -> EditScript (BFam IO) (IO t) (IO t)
