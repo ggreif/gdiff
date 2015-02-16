@@ -3,11 +3,11 @@
 {-#  LANGUAGE TypeOperators  #-}
 {-#  LANGUAGE MultiParamTypeClasses  #-}
 {-#  LANGUAGE FlexibleInstances  #-}
-{-#  LANGUAGE ViewPatterns, FlexibleContexts, ImpredicativeTypes, StandaloneDeriving, DeriveFunctor, UndecidableInstances  #-}
+{-#  LANGUAGE ViewPatterns, FlexibleContexts, ImpredicativeTypes, StandaloneDeriving, DeriveFunctor, UndecidableInstances, PolyKinds  #-}
 
 {-#  OPTIONS_GHC -Wall -fno-warn-name-shadowing  #-}
 
-module Data.Generic.Diff.Effectful ( diffM, patchM, Ize(..), iFeelDirtier, iFeelDirtier') where
+module Data.Generic.Diff.Effectful ( diffM, patchM, Ize(..), smash, iFeelDirtier, iFeelDirtier') where
 
 import Data.Generic.Diff
 import System.IO.Unsafe
@@ -163,6 +163,13 @@ lift f = go f list
           go f (IsCons r) (CCons h t) = CCons (return h) (go (cut f) r t)
           cut :: BFam p t (Cons t' ts) -> BFam p t ts
           cut = undefined
+
+smash :: (Family fam, List fam ts, Monad m) => fam (f t) ts -> Map m ts -> m (f t)
+smash fam ms = smash' (isList fam) ms
+
+smash' :: Monad m => IsList fam ts -> Map m ts -> m (f t)
+smash' IsNil CNil = return undefined
+smash' (IsCons rest) (m `CCons` ms) = m >> smash' rest ms
 
 -- diffIO: superseded by diffM!!
 diffIO :: Type (BFam IO) (IO t) => IO t -> IO t -> EditScript (BFam IO) (IO t) (IO t)
