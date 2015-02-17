@@ -134,8 +134,7 @@ instance Ize BFam p => Type (BFam p) Bool where
 instance (Type (BFam p) a, Type (BFam p) b) => Type (BFam p) (a, b) where
   constructors = [concrPair cca ccb (appendDict (isList cca) (listDict ccb)) | Concr cca <- constructors, Concr ccb <- constructors]
               ++ [abstrPair cca ccb (appendDict (isList $ cca undefined) (listDict $ ccb undefined)) | Abstr cca <- constructors, Abstr ccb <- constructors]
-  -- ###constructors = [iFeelDirty Concr (isList cca `appendList` isList ccb) (cca `Pair` ccb) | Concr cca <- constructors, Concr ccb <- constructors]
-  -- ###            ++ [iFeelDirty' Abstr (isList (cca undefined) `appendList` isList (ccb undefined)) (\(a, b) -> cca a `Pair` ccb b) | Abstr cca <- constructors, Abstr ccb <- constructors]
+    -- TODO: abstr-concr and concr-abstr are missing!
 
 concrPair :: (List (BFam p) ts, List (BFam p) ts') => BFam p a ts -> BFam p b ts' -> Dict (List (BFam p)) (ts `Append` ts') -> Con (BFam p) (a, b)
 concrPair cca ccb Dict = Concr (cca `Pair` ccb)
