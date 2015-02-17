@@ -132,43 +132,21 @@ instance Ize BFam p => Type (BFam p) Bool where
   constructors = [Concr False', Concr True']
 
 instance (Type (BFam p) a, Type (BFam p) b) => Type (BFam p) (a, b) where
-  constructors = [concrPair cca ccb (appendDict d2l (isList cca) (listDict ccb)) | Concr cca <- constructors, Concr ccb <- constructors]
+  constructors = [concrPair cca ccb (appendDict (isList cca) (listDict ccb)) | Concr cca <- constructors, Concr ccb <- constructors]
   -- ###constructors = [iFeelDirty Concr (isList cca `appendList` isList ccb) (cca `Pair` ccb) | Concr cca <- constructors, Concr ccb <- constructors]
   -- ###            ++ [iFeelDirty' Abstr (isList (cca undefined) `appendList` isList (ccb undefined)) (\(a, b) -> cca a `Pair` ccb b) | Abstr cca <- constructors, Abstr ccb <- constructors]
 
 concrPair :: (List (BFam p) ts, List (BFam p) ts') => BFam p a ts -> BFam p b ts' -> Dict (List (BFam p)) (ts `Append` ts') -> Con (BFam p) (a, b)
 concrPair cca ccb Dict = Concr (cca `Pair` ccb)
---    where Dict 
-
-
-d2l :: Dict (Type (BFam p)) a -> Dict (Type (BFam p)) b -> Dict (Type (BFam p)) (a, b)
-d2l Dict Dict = Dict
-
---ddd :: 
 
 listDict :: List fam ts => fam t ts -> Dict (List fam) ts
 listDict _ = Dict
 
-appendDict :: (forall a b . Dict (Type fam) a -> Dict (Type fam) b -> Dict (Type fam) (a, b)) -> IsList fam ts -> Dict (List fam) ts' -> Dict (List fam) (ts `Append` ts')
-appendDict _ IsNil Dict = Dict
-appendDict dt (IsCons r) dl@Dict = case appendDict dt r dl of
-                                     Dict -> Dict
+appendDict :: IsList fam ts -> Dict (List fam) ts' -> Dict (List fam) (ts `Append` ts')
+appendDict IsNil Dict = Dict
+appendDict (IsCons r) dl = case appendDict r dl of
+                             Dict -> Dict
 
-{-
-appendDict :: (forall a b . Dict (Type fam) a -> Dict (Type fam) b -> Dict (Type fam) (a, b)) -> IsList fam ts -> IsList fam ts' -> Dict (List fam) (ts `Append` ts')
-appendDict _ IsNil ccb = Dict
-appendDict _ (IsCons rest) ccb = undefined
--}
-
-{-
-liftedBiDict :: (forall a . Dict (Type fam) a -> Dict (Type fam') (f a)) -> IsList fam ts -> Dict (List fam') ts
-liftedBiDict _ IsNil = Dict
-liftedBiDict dt c@(IsCons r) = case liftedBiDict dt r of
-                                 Dict -> case dt $ typeDict c of
-                                           Dict -> Dict
-  where typeDict :: Type fam' t => IsList fam' (t `Cons` rest) -> Dict (Type fam') t
-        typeDict _ = Dict
--}
 
 {-
 iFeelDirty :: (forall ts . List f ts => f t ts -> Con f t) -> (forall ts . IsList f ts -> f t ts -> Con f t)
