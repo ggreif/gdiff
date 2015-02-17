@@ -7,7 +7,7 @@
 
 {-#  OPTIONS_GHC -Wall -fno-warn-name-shadowing  #-}
 
-module Data.Generic.Diff.Effectful ( diffM, patchM, Ize(..), smash, iFeelDirtier, iFeelDirtier') where
+module Data.Generic.Diff.Effectful ( diffM, patchM, Ize(..), pmash, smash, iFeelDirtier, iFeelDirtier') where
 
 import Data.Generic.Diff
 import System.IO.Unsafe
@@ -164,14 +164,14 @@ lift f = go f list
           cut :: BFam p t (Cons t' ts) -> BFam p t ts
           cut = undefined
 
-pmash :: forall fam ts m f t . (Family fam, List fam ts) => m () -> (forall a b . m a -> m b -> m b) -> fam (f t) ts -> Map m ts -> m ()
+pmash :: forall fam ts m f t . (Family fam, List fam ts) => m (f t) -> (forall a b . m a -> m b -> m b) -> fam (f t) ts -> Map m ts -> m (f t)
 pmash base par fam ms = go (isList fam) ms
-    where go :: IsList fam ts' -> Map m ts' -> m ()
+    where go :: IsList fam ts' -> Map m ts' -> m (f t)
           go IsNil CNil = base
           go (IsCons rest) (m `CCons` ms) = m `par` go rest ms
 
 -- implement smash in terms of pmash (kindof)
-smash' :: (Family fam, List fam ts, Monad m) => fam (f t) ts -> Map m ts -> m ()
+smash' :: (Family fam, List fam ts, Monad m) => fam (f t) ts -> Map m ts -> m (f t)
 smash' = pmash (return undefined) (>>)
 
 smash :: (Family fam, List fam ts, Monad m) => fam (f t) ts -> Map m ts -> m (f t)
