@@ -56,6 +56,7 @@ module Data.Generic.Diff (
     isList,
     Map,
     Dict(..),
+    appendDict,
     liftedDict
 ) where
 
@@ -254,6 +255,11 @@ type family    Map f ts :: * where
 data Dict c a where
   Dict :: c a => Dict c a
 
+
+appendDict :: IsList fam ts -> Dict (List fam) ts' -> Dict (List fam) (ts `Append` ts')
+appendDict IsNil dl = dl
+appendDict (IsCons r) dl = case appendDict r dl of
+                             Dict -> Dict
 
 liftedDict :: (forall a . Dict (Type fam) a -> Dict (Type fam') (f a)) -> IsList fam ts -> Dict (List fam') (Map f ts)
 liftedDict _ IsNil = Dict

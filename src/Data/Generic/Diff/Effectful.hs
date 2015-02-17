@@ -145,11 +145,6 @@ abstrPair cca ccb Dict = Abstr $ \(a, b) -> cca a `Pair` ccb b
 listDict :: List fam ts => fam t ts -> Dict (List fam) ts
 listDict _ = Dict
 
-appendDict :: IsList fam ts -> Dict (List fam) ts' -> Dict (List fam) (ts `Append` ts')
-appendDict IsNil dl = dl
-appendDict (IsCons r) dl = case appendDict r dl of
-                             Dict -> Dict
-
 
 {-
 iFeelDirty :: (forall ts . List f ts => f t ts -> Con f t) -> (forall ts . IsList f ts -> f t ts -> Con f t)
