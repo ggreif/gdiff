@@ -133,17 +133,21 @@ instance Ize BFam p => Type (BFam p) Bool where
 
 instance (Type (BFam p) a, Type (BFam p) b) => Type (BFam p) (a, b) where
   constructors = [concrPair cca ccb (appendDict (isList cca) (listDict ccb)) | Concr cca <- constructors, Concr ccb <- constructors]
+              ++ [abstrPair cca ccb (appendDict (isList $ cca undefined) (listDict $ ccb undefined)) | Abstr cca <- constructors, Abstr ccb <- constructors]
   -- ###constructors = [iFeelDirty Concr (isList cca `appendList` isList ccb) (cca `Pair` ccb) | Concr cca <- constructors, Concr ccb <- constructors]
   -- ###            ++ [iFeelDirty' Abstr (isList (cca undefined) `appendList` isList (ccb undefined)) (\(a, b) -> cca a `Pair` ccb b) | Abstr cca <- constructors, Abstr ccb <- constructors]
 
 concrPair :: (List (BFam p) ts, List (BFam p) ts') => BFam p a ts -> BFam p b ts' -> Dict (List (BFam p)) (ts `Append` ts') -> Con (BFam p) (a, b)
 concrPair cca ccb Dict = Concr (cca `Pair` ccb)
 
+abstrPair :: (Eq a, Eq b, List (BFam p) ts, List (BFam p) ts') => (a -> BFam p a ts) -> (b -> BFam p b ts') -> Dict (List (BFam p)) (ts `Append` ts') -> Con (BFam p) (a, b)
+abstrPair cca ccb Dict = Abstr $ \(a, b) -> cca a `Pair` ccb b
+
 listDict :: List fam ts => fam t ts -> Dict (List fam) ts
 listDict _ = Dict
 
 appendDict :: IsList fam ts -> Dict (List fam) ts' -> Dict (List fam) (ts `Append` ts')
-appendDict IsNil Dict = Dict
+appendDict IsNil dl = dl
 appendDict (IsCons r) dl = case appendDict r dl of
                              Dict -> Dict
 
