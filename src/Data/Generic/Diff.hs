@@ -330,10 +330,10 @@ delete c (CCons x xs) =
     Nothing  -> error "Patching failed"
     Just ts  -> append (isList c) list ts xs
 
-isList :: (Family f, List f ts) => f t ts -> IsList f ts
+isList :: (List f ts) => f t ts -> IsList f ts
 isList _ = list
 
-insert :: (Type f t, List f ts, List f txs) => (f t ts -> ts -> t) -> f t ts -> Append ts txs -> Cons t txs
+insert :: (List f ts) => (f t ts -> ts -> t) -> f t ts -> Append ts txs -> Cons t txs
 insert app c xs = CCons (app c txs) tys
   where (txs, tys) = split (isList c) xs
 
@@ -524,7 +524,7 @@ extendi' isxs' isxs cx dt =
              (bestEditScriptLMemo cx cy isxs' isxs isys' isys i d c)
              i d c)
 
-extractd :: (Type f tx) => EditScriptLMemo f (Cons tx txs) tys' ->
+extractd :: EditScriptLMemo f (Cons tx txs) tys' ->
           (forall txs'. IsList f txs' -> IsList f txs -> f tx txs' ->
           EditScriptLMemo f (Append txs' txs) tys' -> r) -> r
 extractd (CC c _ d' _ d _) k = k (isList c) (sourceTail d') c d
@@ -536,7 +536,7 @@ sourceTail (Del   _ _) = list
 sourceTail (Cpy   _ _) = list
 sourceTail (CpyTree _) = list
 
-extracti :: (Type f ty) => EditScriptLMemo f txs' (Cons ty tys) ->
+extracti :: EditScriptLMemo f txs' (Cons ty tys) ->
           (forall tys'. IsList f tys' -> IsList f tys -> f ty tys' ->
           EditScriptLMemo f txs' (Append tys' tys) -> r) -> r
 extracti (CC _ c d i _ _) k = k (isList c) (targetTail d) c i
