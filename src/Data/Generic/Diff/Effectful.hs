@@ -139,7 +139,7 @@ instance (Type (BFam p) a, Type (BFam p) b) => Type (BFam p) (a, b) where
 concrPair :: (List (BFam p) ts, List (BFam p) ts') => BFam p a ts -> BFam p b ts' -> Dict (List (BFam p)) (ts `Append` ts') -> Con (BFam p) (a, b)
 concrPair cca ccb Dict = Concr (cca `Pair` ccb)
 
-abstrPair :: (Eq a, Eq b, List (BFam p) ts, List (BFam p) ts') => (a -> BFam p a ts) -> (b -> BFam p b ts') -> Dict (List (BFam p)) (ts `Append` ts') -> Con (BFam p) (a, b)
+abstrPair :: (List (BFam p) ts, List (BFam p) ts') => (a -> BFam p a ts) -> (b -> BFam p b ts') -> Dict (List (BFam p)) (ts `Append` ts') -> Con (BFam p) (a, b)
 abstrPair cca ccb Dict = Abstr $ \(a, b) -> cca a `Pair` ccb b
 
 listDict :: List fam ts => fam t ts -> Dict (List fam) ts
